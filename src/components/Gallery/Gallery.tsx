@@ -16,7 +16,7 @@ export function Gallery() {
   return (
     <div className="gallery">
       <header className="gallery-header">
-        <h1>sukjab_scad</h1>
+        <h1>Sukjailab OpenSCAD</h1>
         <p>Pick a design, adjust it to fit, export it ready to print.</p>
       </header>
       {error && <p className="gallery-error">{error}</p>}
