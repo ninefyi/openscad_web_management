@@ -2,7 +2,7 @@
 
 A web app that lets non-technical users customize parametric OpenSCAD models through a generated UI and export the result as an STL file. The Gallery and Customize view are served live by a Cloudflare Worker backed by D1, and an authenticated Admin manages the Built-in Template library through an Admin Panel. The `v1` branch is the original fully static, backend-less version of the same app and is frozen — its own `CONTEXT.md` describes it as it was.
 
-Rendering itself is unchanged from v1: a Template + Configuration is still evaluated into a Mesh entirely client-side, in the end user's (or Admin's) own browser.
+Rendering is hybrid: the interactive preview (Customize view and Admin Panel) is unchanged from v1 — entirely client-side, in the end user's or Admin's own browser — but Export and Admin Publish validation now Render server-side, through native OpenSCAD in a Cloudflare Container, via an async Export Job. See [ADR-0004](./docs/adr/0004-hybrid-client-and-server-rendering.md).
 
 ## Language
 
@@ -43,12 +43,16 @@ The current set of Parameter values a user has dialed in for a Template during t
 _Avoid_: Design, Customization, Setup
 
 **Render**:
-The Web Worker's evaluation of a Template + Configuration through openscad-wasm into a Mesh. Always a full, exact evaluation — OpenSCAD Web Management never uses OpenSCAD's fast/approximate "Preview" mode, so the same Mesh is valid for both the Viewer and Export. See [ADR-0001](./docs/adr/0001-always-render-exact-geometry.md).
+Evaluating a Template + Configuration into a Mesh. Always a full, exact evaluation — OpenSCAD Web Management never uses OpenSCAD's fast/approximate "Preview" mode. See [ADR-0001](./docs/adr/0001-always-render-exact-geometry.md). Happens on one of two engines depending on what triggered it: the Customize view and Admin Panel's live preview always Render client-side, in a Web Worker through openscad-wasm (unchanged since ADR-0001, kept fast and free by design — see [ADR-0004](./docs/adr/0004-hybrid-client-and-server-rendering.md)); an Export Job always Renders server-side, through native OpenSCAD.
 _Avoid_: Compile, Build, Preview (Preview is a distinct OpenSCAD concept this app deliberately does not use)
 
 **Mesh**:
-The triangulated 3D geometry produced by a Render; consumed directly by both the Viewer and Export.
+The triangulated 3D geometry produced by a client-side Render, displayed in the Viewer. An Export Job produces an STL file directly and never touches the Viewer's Mesh — see Export Job for why they're allowed to diverge slightly despite both coming from "the same" Template + Configuration.
 _Avoid_: Model, Geometry
+
+**Export Job**:
+A tracked, asynchronous request for a server-side Render — the only path that produces the STL file a customer actually downloads, or that Admin Publish validates against. Moves through `queued` → `rendering` → `done`/`failed`; created by a customer's Export, by Admin Publish's server-side validation step, or by an admin script's render-only call — never by the Customize view's or Admin Panel's live preview, which stay on the client-side path. Identical requests (same Template version + Configuration) are deduplicated: a new Export reuses a prior done Export Job's result instead of rendering again. See [ADR-0004](./docs/adr/0004-hybrid-client-and-server-rendering.md) and [ADR-0005](./docs/adr/0005-async-export-job-pipeline.md).
+_Avoid_: Render job, Task, Queue item
 
 ### Screens & Actions
 
@@ -65,13 +69,13 @@ The Three.js/@react-three/fiber 3D pane in the Customize view that displays the 
 _Avoid_: Preview, Canvas
 
 **Export**:
-The user action of downloading the current Mesh as an STL file.
+The user action of downloading an STL file for the current Configuration. Always goes through a fresh Export Job (a server-side Render via native OpenSCAD) — never a re-export of the Viewer's own client-side Mesh, even though the Viewer is usually already showing the identical result. Not instant: the customer sees the Export Job's progress (queued/rendering) until the file is ready to download.
 _Avoid_: Download, Save
 
 ### Administration (v2 only)
 
 **Admin**:
-The single authenticated role, gated by Cloudflare Access, that can create, edit, rename, and delete Built-in Templates through the Admin Panel. OpenSCAD Web Management has no end-user accounts at all — Admin is the only authenticated identity in the system.
+The single authenticated role, gated by Cloudflare Access, that can create, edit, rename, and delete Built-in Templates through the Admin Panel — or, for scripts, through the same Access application using a Service Token instead of an interactive login. OpenSCAD Web Management has no end-user accounts at all — Admin is the only authenticated identity in the system.
 _Avoid_: Operator, Curator, Owner, User
 
 **Admin Panel**:
@@ -79,5 +83,5 @@ The authenticated part of the app where the Admin manages the Built-in Template 
 _Avoid_: Dashboard, CMS, Backend
 
 **Publish**:
-The Admin's action of committing a new or edited Built-in Template so it's visible in the live Gallery. Blocked until the Template Renders successfully in the Admin's own browser, using the same client-side pipeline end users get. There is no separate draft or review state: a Template is either successfully Published — live immediately — or not persisted at all. See [ADR-0002](./docs/adr/0002-admin-validation-runs-client-side.md).
+The Admin's action of committing a new or edited Built-in Template so it's visible in the live Gallery. Blocked until two checks both pass: the Template Renders successfully in the Admin's own browser (the client-side pipeline end users get — see [ADR-0002](./docs/adr/0002-admin-validation-runs-client-side.md)), and a server-side Export Job of the exact same draft also succeeds (catching the class of bug that only shows up on the native OpenSCAD path — see [ADR-0005](./docs/adr/0005-async-export-job-pipeline.md)). There is no separate draft or review state: a Template is either successfully Published — live immediately — or not persisted at all.
 _Avoid_: Save, Save Draft, Upload

@@ -11,9 +11,19 @@ database_name = "openscad-web-management"
 database_id = "1889bb26-3f2e-4c9a-bef0-8351f45d587e"
 
 # Created by `npx wrangler r2 bucket create openscad-web-management-thumbnails`.
+# Also holds Export Job STL results, under an `exports/` key prefix — same
+# bucket as thumbnails to avoid provisioning a second one for this.
 [[r2_buckets]]
 binding = "THUMBNAILS"
 bucket_name = "openscad-web-management-thumbnails"
+
+# Created by `npx wrangler queues create render-jobs`. This project is only
+# the producer (Pages Functions can't consume queues — see render-worker/,
+# a separate standalone Worker that both consumes this queue and runs the
+# actual render Container).
+[[queues.producers]]
+queue = "render-jobs"
+binding = "RENDER_QUEUE"
 
 [vars]
 ENVIRONMENT = "production"

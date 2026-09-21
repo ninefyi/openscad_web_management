@@ -29,7 +29,7 @@ export function CustomizeView({ template, onBack }: CustomizeViewProps) {
     defaultConfiguration(template),
   );
   const [color, setColor] = useState<string>(loadStoredColor);
-  const { geometry, stl, loading, error } = useRenderMesh(template, config);
+  const { geometry, loading, error } = useRenderMesh(template, config);
   const complexityHint = useMemo(
     () => complexityMessage(estimateComplexity(template.source)),
     [template.source],
@@ -55,7 +55,12 @@ export function CustomizeView({ template, onBack }: CustomizeViewProps) {
           ← Gallery
         </button>
         <h1>{template.name}</h1>
-        <ExportButton stl={stl} fileName={template.name.replace(/\s+/g, "-").toLowerCase()} />
+        <ExportButton
+          templateId={template.id}
+          parameters={template.parameters}
+          configuration={config}
+          fileName={template.name.replace(/\s+/g, "-").toLowerCase()}
+        />
       </header>
       <div className="customize-body">
         <Viewer

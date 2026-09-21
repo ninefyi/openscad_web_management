@@ -9,7 +9,6 @@ const DEBOUNCE_MS = 400;
 
 export interface RenderState {
   geometry: BufferGeometry | null;
-  stl: ArrayBuffer | null;
   loading: boolean;
   error: string | null;
 }
@@ -28,7 +27,6 @@ function buildDefines(parameters: Parameter[], config: Configuration): string[] 
 export function useRenderMesh(template: Template, config: Configuration): RenderState {
   const [state, setState] = useState<RenderState>({
     geometry: null,
-    stl: null,
     loading: true,
     error: null,
   });
@@ -49,7 +47,7 @@ export function useRenderMesh(template: Template, config: Configuration): Render
 
       if (msg.ok) {
         const geometry = loaderRef.current.parse(msg.stl);
-        setState({ geometry, stl: msg.stl, loading: false, error: null });
+        setState({ geometry, loading: false, error: null });
       } else {
         setState((prev) => ({ ...prev, loading: false, error: msg.error }));
       }

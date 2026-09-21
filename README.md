@@ -1,6 +1,6 @@
 # OpenSCAD Web Management
 
-A web app that lets non-technical users customize parametric OpenSCAD designs through a generated UI, with a live 3D preview and one-click STL export. The Gallery and Customize view are served live by a Cloudflare Worker (Pages Functions) backed by D1, and an authenticated Admin manages the Built-in Template library through an Admin Panel. The `v1` branch is the original fully static, backend-less version of the same app and is frozen — see its own README/CONTEXT.md.
+A web app that lets non-technical users customize parametric OpenSCAD designs through a generated UI, with a live 3D preview and one-click STL export. The Gallery and Customize view are served live by a Cloudflare Worker (Pages Functions) backed by D1, and an authenticated Admin manages the Built-in Template library through an Admin Panel. Rendering is hybrid — the interactive preview stays entirely client-side, but Export and Admin Publish validation Render server-side, through native OpenSCAD in a Cloudflare Container (see [ADR-0004](./docs/adr/0004-hybrid-client-and-server-rendering.md)). The `v1` branch is the original fully static, backend-less version of the same app and is frozen — see its own README/CONTEXT.md.
 
 See [CONTEXT.md](./CONTEXT.md) for the project's glossary and [docs/adr](./docs/adr) for architecture decisions.
 
@@ -8,9 +8,10 @@ See [CONTEXT.md](./CONTEXT.md) for the project's glossary and [docs/adr](./docs/
 
 - React + TypeScript + Vite, React Router for the Gallery/Customize/Admin routes
 - Three.js / `@react-three/fiber` / `@react-three/drei` for the 3D viewer
-- [openscad-wasm](https://github.com/openscad/openscad-wasm) running in a Web Worker for rendering — entirely client-side, unchanged from v1
-- Cloudflare Pages + Pages Functions (Workers) + D1 + R2 for the Built-in Template store and Admin API
-- Cloudflare Access for Admin authentication (no custom auth code)
+- [openscad-wasm](https://github.com/openscad/openscad-wasm) running in a Web Worker for the interactive preview — entirely client-side, unchanged from v1
+- Cloudflare Pages + Pages Functions (Workers) + D1 + R2 for the Built-in Template store, Admin API, and Export Job tracking
+- `render-worker/` — a separate standalone Worker (Pages Functions can't run Containers or consume Queues) running native OpenSCAD in a Cloudflare Container, consuming a Cloudflare Queue for every Export/Publish-validation/admin-script Render (see [ADR-0005](./docs/adr/0005-async-export-job-pipeline.md))
+- Cloudflare Access for Admin authentication (no custom auth code) — also covers admin scripts via a Service Token
 
 ## Getting started (local dev)
 
@@ -29,9 +30,9 @@ Deploying for real (D1/R2/Pages/Access setup) is a one-time, account-level proce
 
 - **Templates** are `.scad` source annotated with the standard [OpenSCAD Customizer](https://openscad.org/documentation.html#Customizer) comment convention (`// [min:max]` ranges, `// [a,b,c]` dropdowns, `/* [Group] */` sections, `/* [Hidden] */` to exclude a variable). `src/customizer/parseCustomizer.ts` parses those comments into typed `Parameter`s — used identically by the public Customize view and the Admin Panel's live preview.
 - **Built-in Templates** live in D1 (`templates` table — see [migrations/0001_init.sql](./migrations/0001_init.sql)), served by [Pages Functions](./functions/api/) at `/api/templates` (public, read-only) and `/api/admin/templates` (Admin-only, gated by [`functions/api/admin/_middleware.ts`](./functions/api/admin/_middleware.ts)). `src/templates/builtin/` still holds the 3 starter templates' source — not bundled into the app anymore, just what [`scripts/seed-d1.mjs`](./scripts/seed-d1.mjs) seeds D1 with.
-- **Rendering** is unchanged from v1: `src/worker/render.worker.ts` runs openscad-wasm in a Web Worker, `-D name=value` flags for the current parameter values, a fresh OpenSCAD instance per render (see the ADR-0001 note in CONTEXT.md — openscad-wasm's internal state isn't safe to reuse across `callMain()` calls). `src/state/useRenderMesh.ts` debounces changes and keeps the last valid geometry on screen through a failed render.
-- **The Admin Panel** (`/admin`, `src/admin/`) reuses that exact rendering pipeline for its live preview: `AdminEditor.tsx` parses the in-progress `.scad` source, runs it through the same `useRenderMesh`, and only enables Publish once it renders successfully (see [ADR-0002](./docs/adr/0002-admin-validation-runs-client-side.md) — this validation runs in the Admin's own browser, not in the Worker). Publish captures a thumbnail straight from the live preview's canvas and uploads it to R2, then writes the template to D1 — visible in the public Gallery immediately, no redeploy (see [ADR-0003](./docs/adr/0003-v2-gallery-is-fully-dynamic.md)).
-- **Export** still downloads the raw STL bytes the worker produced directly — no re-export from the Three.js geometry.
+- **The interactive preview** is unchanged from v1: `src/worker/render.worker.ts` runs openscad-wasm in a Web Worker, `-D name=value` flags for the current parameter values, a fresh OpenSCAD instance per render (see the ADR-0001 note in CONTEXT.md — openscad-wasm's internal state isn't safe to reuse across `callMain()` calls). `src/state/useRenderMesh.ts` debounces changes and keeps the last valid geometry on screen through a failed render. The Admin Panel's live preview (`src/admin/AdminEditor.tsx`) reuses this exact pipeline while authoring, same as before.
+- **Export and Admin Publish validation** go server-side instead: `src/api/exportClient.ts` submits an Export Job (`POST /api/export` or, for a draft template, `POST /api/admin/render`) and polls `GET /api/jobs/:id` until it's `done`/`failed`. `functions/lib/jobs.ts` handles job creation, caching (identical Template-version + Configuration requests reuse a prior result), and a queue-position estimate for progress messaging; `functions/lib/rateLimit.ts` guards exports with a simple per-browser-session limit. The actual render happens in `render-worker/` — see its own comments and [ADR-0005](./docs/adr/0005-async-export-job-pipeline.md) for why that's a separate Worker project.
+- **Publish** (`src/admin/AdminEditor.tsx`) now blocks on two checks: the existing client-side render (ADR-0002), and a real Export Job of the exact draft succeeding server-side — catching a bug class that only shows up on the native OpenSCAD path before it reaches customers. Publish still captures a thumbnail straight from the client-side preview's canvas and uploads it to R2, then writes the template to D1 — visible in the public Gallery immediately, no redeploy (see [ADR-0003](./docs/adr/0003-v2-gallery-is-fully-dynamic.md)).
 
 ## Adding/editing templates
 

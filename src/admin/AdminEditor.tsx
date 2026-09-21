@@ -10,6 +10,7 @@ import { Viewer } from "../components/Customize/Viewer";
 import { ParameterPanel } from "../components/Customize/ParameterPanel";
 import { fetchTemplateDetail } from "../api/client";
 import { createTemplate, updateTemplate, deleteTemplate, uploadThumbnail } from "../api/adminClient";
+import { submitAdminRender, pollUntilSettled, visibleConfiguration } from "../api/exportClient";
 
 const PREVIEW_COLOR = "#6366f1";
 const PLACEHOLDER_SOURCE = `// A new template — top-level variables become customizable
@@ -34,7 +35,7 @@ export function AdminEditor() {
 
   const [loading, setLoading] = useState(!isNew);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
+  const [publishStage, setPublishStage] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -98,7 +99,12 @@ export function AdminEditor() {
   const canvasElRef = useRef<HTMLCanvasElement | null>(null);
 
   const canPublish =
-    !loading && !rendering && !renderError && geometry !== null && name.trim() !== "";
+    !loading &&
+    !rendering &&
+    !renderError &&
+    geometry !== null &&
+    name.trim() !== "" &&
+    publishStage === null;
 
   function handleConfigChange(paramName: string, value: Configuration[string]) {
     setConfig((prev) => ({ ...prev, [paramName]: value }));
@@ -120,9 +126,37 @@ export function AdminEditor() {
   }
 
   async function handlePublish() {
-    setSaving(true);
     setSaveError(null);
+    setPublishStage("Validating on the server…");
     try {
+      // Confirms the exact server-side Render path (native OpenSCAD in a
+      // Container, not the WASM build) also succeeds for this template
+      // before it goes live — catches the class of bug that passed the
+      // client-side check here but would break every customer's export
+      // downstream (see ADR: one render pipeline for all server-side callers).
+      const defaultConfig = defaultConfiguration(draftTemplate);
+      const { jobId } = await submitAdminRender(
+        source,
+        visibleConfiguration(appliedParams, defaultConfig),
+      );
+      const result = await pollUntilSettled(jobId, (status) => {
+        if (status.status === "queued") {
+          setPublishStage(
+            status.aheadInQueue > 0
+              ? `In queue — ${status.aheadInQueue} ahead…`
+              : "In queue…",
+          );
+        } else if (status.status === "rendering") {
+          setPublishStage("Rendering on the server…");
+        }
+      });
+      if (result.status !== "done") {
+        throw new Error(
+          result.error ?? "Server-side render failed — won't publish until it succeeds.",
+        );
+      }
+
+      setPublishStage("Saving…");
       const input = {
         name: name.trim(),
         description: description.trim() || undefined,
@@ -142,7 +176,7 @@ export function AdminEditor() {
     } catch (err) {
       setSaveError(err instanceof Error ? err.message : "Couldn't publish.");
     } finally {
-      setSaving(false);
+      setPublishStage(null);
     }
   }
 
@@ -173,8 +207,8 @@ export function AdminEditor() {
               Delete
             </button>
           )}
-          <button className="export-button" disabled={!canPublish || saving} onClick={handlePublish}>
-            {saving ? "Publishing…" : "Publish"}
+          <button className="export-button" disabled={!canPublish} onClick={handlePublish}>
+            {publishStage ?? "Publish"}
           </button>
         </div>
       </header>

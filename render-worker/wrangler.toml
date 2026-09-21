@@ -1,0 +1,38 @@
+name = "openscad-render-worker"
+main = "src/index.ts"
+compatibility_date = "2026-09-01"
+
+# The actual render engine — native OpenSCAD in a container (see
+# container/Dockerfile), not the WASM build the frontend uses.
+[[containers]]
+image = "./container/Dockerfile"
+class_name = "RenderContainer"
+max_instances = 5
+
+[[durable_objects.bindings]]
+name = "RENDER_CONTAINER"
+class_name = "RenderContainer"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["RenderContainer"]
+
+# Consumes the queue the main Pages project (../wrangler.toml) produces to —
+# Pages Functions can't be a queue consumer, which is the whole reason this
+# is a separate Worker project instead of living in functions/.
+[[queues.consumers]]
+queue = "render-jobs"
+max_batch_size = 1
+max_retries = 2
+
+# Same D1 database and R2 bucket as the main project — shared resources,
+# not project-exclusive. Paste the real database_id (same value as in
+# ../wrangler.toml) before deploying.
+[[d1_databases]]
+binding = "DB"
+database_name = "openscad-web-management"
+database_id = "1889bb26-3f2e-4c9a-bef0-8351f45d587e"
+
+[[r2_buckets]]
+binding = "THUMBNAILS"
+bucket_name = "openscad-web-management-thumbnails"
