@@ -1,0 +1,20 @@
+{
+  "name": "Phone Stand",
+  "description": "An angled stand to prop up a phone at your desk.",
+  "labels": {
+    "phone_thickness": "Phone + Case Thickness",
+    "slot_width": "Slot Width",
+    "angle": "Viewing Angle",
+    "base_depth": "Base Depth",
+    "stand_height": "Height",
+    "wall": "Material Thickness"
+  },
+  "order": [
+    "slot_width",
+    "phone_thickness",
+    "angle",
+    "stand_height",
+    "base_depth",
+    "wall"
+  ]
+}

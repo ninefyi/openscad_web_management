@@ -1,0 +1,13 @@
+{
+  "name": "Storage Box",
+  "description": "A simple open box you can size to fit whatever it needs to hold.",
+  "labels": {
+    "width": "Width",
+    "depth": "Depth",
+    "height": "Height",
+    "wall": "Wall Thickness",
+    "with_lid": "Include a Lid",
+    "corner_style": "Corners"
+  },
+  "order": ["width", "depth", "height", "wall", "corner_style", "with_lid"]
+}
