@@ -1,17 +1,15 @@
 import { useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import { templateFromUpload } from "../../templates/registry";
-import type { Template } from "../../types/template";
 
-interface UploadCardProps {
-  onUploaded: (template: Template) => void;
-}
-
-export function UploadCard({ onUploaded }: UploadCardProps) {
+export function UploadCard() {
   const inputRef = useRef<HTMLInputElement>(null);
+  const navigate = useNavigate();
 
   async function handleFile(file: File) {
     const text = await file.text();
-    onUploaded(templateFromUpload(file.name, text));
+    const template = templateFromUpload(file.name, text);
+    navigate("/t/upload", { state: { template } });
   }
 
   return (

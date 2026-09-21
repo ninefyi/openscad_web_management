@@ -82,7 +82,10 @@ export function parseCustomizer(source: string): Parameter[] {
     const commentOnlyMatch = line.match(/^\s*\/\/\s*(.*\S)\s*$/);
     if (commentOnlyMatch && braceDepth === 0) {
       pendingDescription = commentOnlyMatch[1];
-    } else if (line.trim() !== "") {
+    } else {
+      // A description comment must sit directly above its variable, per the
+      // Customizer convention — a blank line (or anything else) breaks that
+      // adjacency, so any unrelated comment above it must not carry forward.
       pendingDescription = undefined;
     }
 

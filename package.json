@@ -7,22 +7,36 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "pages:dev": "vite build && wrangler pages dev dist --port 8789",
+    "d1:migrate:local": "wrangler d1 migrations apply sukjab-scad --local",
+    "d1:migrate:remote": "wrangler d1 migrations apply sukjab-scad --remote",
+    "d1:seed:local": "node scripts/seed-d1.mjs",
+    "d1:seed:remote": "node scripts/seed-d1.mjs --remote"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.8",
     "@react-three/fiber": "^9.7.0",
+    "jose": "^6.2.12",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
+    "react-router-dom": "^7.18.4",
     "three": "^0.186.0"
   },
   "devDependencies": {
+    "@cloudflare/workers-types": "^5.20260921.1",
     "@types/node": "^24.13.3",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.7",
     "@vitejs/plugin-react": "^6.1.1",
     "oxlint": "^1.81.0",
     "typescript": "~6.0.2",
-    "vite": "^8.3.0"
+    "vite": "^8.3.0",
+    "wrangler": "^4.135.0"
+  },
+  "allowScripts": {
+    "esbuild@0.28.1": true,
+    "workerd@1.20260918.1": true,
+    "fsevents@2.3.3": true
   }
 }

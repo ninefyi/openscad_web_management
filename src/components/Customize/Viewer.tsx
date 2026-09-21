@@ -8,12 +8,18 @@ interface ViewerProps {
   loading: boolean;
   error: string | null;
   color: string;
+  /** Admin Panel thumbnail capture needs the raw canvas element; unused by the public Customize view. */
+  onCanvasReady?: (canvas: HTMLCanvasElement) => void;
 }
 
-export function Viewer({ geometry, loading, error, color }: ViewerProps) {
+export function Viewer({ geometry, loading, error, color, onCanvasReady }: ViewerProps) {
   return (
     <div className="viewer">
-      <Canvas camera={{ position: [120, 100, 140], fov: 40 }}>
+      <Canvas
+        camera={{ position: [120, 100, 140], fov: 40 }}
+        gl={{ preserveDrawingBuffer: true }}
+        onCreated={(state) => onCanvasReady?.(state.gl.domElement)}
+      >
         <color attach="background" args={["#f4f4f5"]} />
         <ambientLight intensity={0.6} />
         <directionalLight position={[100, 150, 100]} intensity={1} />

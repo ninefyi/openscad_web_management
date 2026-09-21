@@ -1,16 +1,16 @@
-import type { Template } from "../../types/template";
+import { Link } from "react-router-dom";
+import type { TemplateSummary } from "../../api/client";
 
 interface TemplateCardProps {
-  template: Template;
-  onSelect: (template: Template) => void;
+  template: TemplateSummary;
 }
 
-export function TemplateCard({ template, onSelect }: TemplateCardProps) {
+export function TemplateCard({ template }: TemplateCardProps) {
   return (
-    <button className="template-card" onClick={() => onSelect(template)}>
+    <Link className="template-card" to={`/t/${template.id}`}>
       <div className="template-card-thumb">
-        {template.thumbnail ? (
-          <img src={template.thumbnail} alt="" />
+        {template.hasThumbnail ? (
+          <img src={`/api/templates/${template.id}/thumbnail`} alt="" />
         ) : (
           <span className="template-card-thumb-placeholder">{template.name.charAt(0)}</span>
         )}
@@ -19,6 +19,6 @@ export function TemplateCard({ template, onSelect }: TemplateCardProps) {
         <h3>{template.name}</h3>
         {template.description && <p>{template.description}</p>}
       </div>
-    </button>
+    </Link>
   );
 }

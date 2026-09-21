@@ -1,25 +1,34 @@
-import { builtinTemplates } from "../../templates/registry";
-import type { Template } from "../../types/template";
+import { useEffect, useState } from "react";
+import { listBuiltinTemplates, type TemplateSummary } from "../../api/client";
 import { TemplateCard } from "./TemplateCard";
 import { UploadCard } from "./UploadCard";
 
-interface GalleryProps {
-  onSelect: (template: Template) => void;
-}
+export function Gallery() {
+  const [templates, setTemplates] = useState<TemplateSummary[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-export function Gallery({ onSelect }: GalleryProps) {
+  useEffect(() => {
+    listBuiltinTemplates()
+      .then(setTemplates)
+      .catch((err: Error) => setError(err.message));
+  }, []);
+
   return (
     <div className="gallery">
       <header className="gallery-header">
         <h1>sukjab_scad</h1>
         <p>Pick a design, adjust it to fit, export it ready to print.</p>
       </header>
-      <div className="gallery-grid">
-        {builtinTemplates.map((template) => (
-          <TemplateCard key={template.id} template={template} onSelect={onSelect} />
-        ))}
-        <UploadCard onUploaded={onSelect} />
-      </div>
+      {error && <p className="gallery-error">{error}</p>}
+      {!error && !templates && <p className="gallery-loading">Loading templates…</p>}
+      {templates && (
+        <div className="gallery-grid">
+          {templates.map((template) => (
+            <TemplateCard key={template.id} template={template} />
+          ))}
+          <UploadCard />
+        </div>
+      )}
     </div>
   );
 }

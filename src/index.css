@@ -62,7 +62,29 @@ button {
   border-radius: 12px;
   overflow: hidden;
   padding: 0;
+  text-decoration: none;
+  color: inherit;
   transition: box-shadow 0.15s, transform 0.15s;
+}
+
+.gallery-error,
+.gallery-loading {
+  color: var(--muted);
+}
+
+.gallery-error {
+  color: #991b1b;
+}
+
+.page-message {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1rem;
+  max-width: 480px;
+  margin: 4rem auto;
+  padding: 0 1.5rem;
+  color: var(--muted);
 }
 
 .template-card:hover {
@@ -353,6 +375,219 @@ button {
   border-radius: 6px;
 }
 
+/* Admin */
+
+.admin-list,
+.admin-editor {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 1.5rem;
+}
+
+.admin-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.admin-header h1 {
+  font-size: 1.35rem;
+  margin: 0;
+}
+
+.admin-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.admin-link {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 0.5rem 0.9rem;
+  border-radius: 8px;
+  text-decoration: none;
+  font-size: 0.9rem;
+}
+
+.admin-link:hover {
+  background: #f4f4f5;
+}
+
+.export-button {
+  text-decoration: none;
+  display: inline-block;
+}
+
+.admin-delete-button {
+  background: none;
+  border: 1px solid #fecaca;
+  color: #991b1b;
+  padding: 0.5rem 0.9rem;
+  border-radius: 8px;
+  font-size: 0.9rem;
+}
+
+.admin-delete-button:hover:not(:disabled) {
+  background: #fef2f2;
+}
+
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.admin-table th,
+.admin-table td {
+  text-align: left;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.9rem;
+}
+
+.admin-table th {
+  color: var(--muted);
+  font-weight: 600;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.admin-table-description {
+  color: var(--muted);
+  max-width: 320px;
+}
+
+.admin-table-actions {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.admin-table-empty {
+  text-align: center;
+  color: var(--muted);
+  padding: 2rem;
+}
+
+.admin-render-error {
+  background: #fef2f2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  padding: 0.6rem 0.9rem;
+  font-size: 0.85rem;
+  margin-bottom: 1rem;
+}
+
+.admin-editor-body {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+  align-items: start;
+}
+
+.admin-editor-source {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.admin-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.admin-field input {
+  font-weight: 400;
+  padding: 0.5rem 0.7rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 0.9rem;
+}
+
+.admin-code-editor {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  min-height: 320px;
+  padding: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  resize: vertical;
+  tab-size: 2;
+  background: #fafafa;
+  font-weight: 400;
+}
+
+.admin-manifest-editor {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.9rem;
+}
+
+.admin-manifest-editor h3 {
+  margin: 0 0 0.75rem;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--muted);
+}
+
+.admin-manifest-row {
+  display: grid;
+  grid-template-columns: 1fr 1.4fr auto;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 0.5rem;
+  font-size: 0.85rem;
+}
+
+.admin-manifest-row code {
+  color: var(--muted);
+}
+
+.admin-manifest-row input[type="text"],
+.admin-manifest-row input:not([type]) {
+  padding: 0.35rem 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 0.85rem;
+}
+
+.admin-manifest-row label {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  white-space: nowrap;
+}
+
+.admin-editor-preview {
+  position: sticky;
+  top: 1.5rem;
+}
+
+.admin-editor-preview .viewer {
+  height: 360px;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+
+.admin-editor-params {
+  margin-top: 1rem;
+}
+
 /* Responsive */
 
 @media (max-width: 768px) {
@@ -368,5 +603,13 @@ button {
 
   .viewer {
     height: 45vh;
+  }
+
+  .admin-editor-body {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-editor-preview {
+    position: static;
   }
 }
