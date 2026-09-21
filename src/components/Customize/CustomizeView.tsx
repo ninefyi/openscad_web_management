@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import type { Configuration, Parameter, Template } from "../../types/template";
 import { defaultConfiguration } from "../../templates/defaultConfiguration";
 import { useRenderMesh } from "../../state/useRenderMesh";
+import { estimateComplexity, complexityMessage } from "../../customizer/estimateComplexity";
 import { Viewer } from "./Viewer";
 import { ParameterPanel } from "./ParameterPanel";
 import { ExportButton } from "./ExportButton";
@@ -29,6 +30,10 @@ export function CustomizeView({ template, onBack }: CustomizeViewProps) {
   );
   const [color, setColor] = useState<string>(loadStoredColor);
   const { geometry, stl, loading, error } = useRenderMesh(template, config);
+  const complexityHint = useMemo(
+    () => complexityMessage(estimateComplexity(template.source)),
+    [template.source],
+  );
 
   function handleChange(name: string, value: Parameter["defaultValue"]) {
     setConfig((prev) => ({ ...prev, [name]: value }));
@@ -53,9 +58,16 @@ export function CustomizeView({ template, onBack }: CustomizeViewProps) {
         <ExportButton stl={stl} fileName={template.name.replace(/\s+/g, "-").toLowerCase()} />
       </header>
       <div className="customize-body">
-        <Viewer geometry={geometry} loading={loading} error={error} color={color} />
+        <Viewer
+          geometry={geometry}
+          loading={loading}
+          error={error}
+          color={color}
+          complexityMessage={complexityHint}
+        />
         <aside className="customize-sidebar">
           {template.description && <p className="template-description">{template.description}</p>}
+          {complexityHint && <p className="complexity-hint">{complexityHint}</p>}
           <ColorPicker color={color} onChange={handleColorChange} />
           <ParameterPanel
             parameters={template.parameters}
