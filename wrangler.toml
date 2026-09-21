@@ -8,7 +8,7 @@ compatibility_date = "2026-09-01"
 [[d1_databases]]
 binding = "DB"
 database_name = "openscad-web-management"
-database_id = "REPLACE_WITH_D1_DATABASE_ID"
+database_id = "1889bb26-3f2e-4c9a-bef0-8351f45d587e"
 
 # Created by `npx wrangler r2 bucket create openscad-web-management-thumbnails`.
 [[r2_buckets]]
@@ -19,5 +19,5 @@ bucket_name = "openscad-web-management-thumbnails"
 ENVIRONMENT = "production"
 # From your Cloudflare Zero Trust Access application, after you create it —
 # see docs/v2-deploy.md. Required for the admin API's JWT verification.
-ACCESS_TEAM_DOMAIN = "REPLACE_WITH_YOUR_TEAM.cloudflareaccess.com"
-ACCESS_AUD = "REPLACE_WITH_ACCESS_APP_AUD_TAG"
+ACCESS_TEAM_DOMAIN = "ninefyi.cloudflareaccess.com"
+ACCESS_AUD = "3de3aaf7b8b94d034d9e54cbe800d3ba5cf104fd7af03c8b674c38b55f19e582"
