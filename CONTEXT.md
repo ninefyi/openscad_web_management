@@ -1,6 +1,8 @@
-# sukjab_scad
+# sukjab_scad (v2)
 
-A static, client-side web app that lets non-technical users customize parametric OpenSCAD models through a generated UI and export the result as an STL file.
+A web app that lets non-technical users customize parametric OpenSCAD models through a generated UI and export the result as an STL file. This is the `v2` branch: the Gallery and Customize view are served live by a Cloudflare Worker backed by D1, and an authenticated Admin manages the Built-in Template library through an Admin Panel. The `v1` branch is the original fully static, backend-less version of the same app and is frozen — its own `CONTEXT.md` describes it as it was.
+
+Rendering itself is unchanged from v1: a Template + Configuration is still evaluated into a Mesh entirely client-side, in the end user's (or Admin's) own browser.
 
 ## Language
 
@@ -11,7 +13,7 @@ A parametric OpenSCAD design (`.scad` source plus its Customizer comments) that 
 _Avoid_: Model, Design, File
 
 **Built-in Template**:
-A Template curated by the app operator, bundled with the app, and shown in the Gallery. May ship with a Template Manifest.
+A Template curated by the Admin and shown in the Gallery. May have a Template Manifest. Stored in D1 and served live by the Worker; the Admin manages it through the Admin Panel, and a successful Publish is visible to end users immediately, with no redeploy. (In v1, this was instead a file bundled with the app at build time, hand-edited and shipped via a normal code deploy — no Admin role existed.)
 _Avoid_: Starter template, Sample
 
 **Uploaded Template**:
@@ -19,7 +21,7 @@ A Template supplied by the user via file upload, for the current session only. N
 _Avoid_: Custom template, User file
 
 **Template Manifest**:
-An optional JSON sidecar (`template.json`) for a Built-in Template that overrides Control labels, adds a Gallery thumbnail/description, reorders fields, or force-hides a Parameter — without touching the `.scad` file's own Customizer comments. Only Built-in Templates can have one. It can hide additional Parameters, but can never un-hide a Parameter the `.scad` file itself marked Hidden.
+The optional display-override data for a Built-in Template — overriding Control labels, adding a Gallery thumbnail/description, reordering fields, or force-hiding a Parameter — without touching the `.scad` file's own Customizer comments. Only Built-in Templates can have one. It can hide additional Parameters, but can never un-hide a Parameter the `.scad` file itself marked Hidden. Stored as a D1 row's fields, edited through the Admin Panel. (In v1, this was a `template.json` sidecar file instead.)
 _Avoid_: Metadata, Config
 
 **Parameter**:
@@ -69,3 +71,17 @@ _Avoid_: Preview, Canvas
 **Export**:
 The user action of downloading the current Mesh as an STL file.
 _Avoid_: Download, Save
+
+### Administration (v2 only)
+
+**Admin**:
+The single authenticated role, gated by Cloudflare Access, that can create, edit, rename, and delete Built-in Templates through the Admin Panel. sukjab_scad has no end-user accounts at all — Admin is the only authenticated identity in the system.
+_Avoid_: Operator, Curator, Owner, User
+
+**Admin Panel**:
+The authenticated part of the app where the Admin manages the Built-in Template library: writing `.scad` source with a live Customizer-parse preview, editing Template Manifest fields, and Publishing.
+_Avoid_: Dashboard, CMS, Backend
+
+**Publish**:
+The Admin's action of committing a new or edited Built-in Template so it's visible in the live Gallery. Blocked until the Template Renders successfully in the Admin's own browser, using the same client-side pipeline end users get. There is no separate draft or review state: a Template is either successfully Published — live immediately — or not persisted at all. See [ADR-0002](./docs/adr/0002-admin-validation-runs-client-side.md).
+_Avoid_: Save, Save Draft, Upload (Upload is a distinct, unrelated end-user action — see Uploaded Template)

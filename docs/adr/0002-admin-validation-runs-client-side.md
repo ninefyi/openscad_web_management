@@ -1,0 +1,5 @@
+# Admin Publish validation runs client-side, not in the Worker
+
+The Admin Panel validates a Built-in Template exactly the way end users get their preview — by running the existing client-side render pipeline (openscad-wasm in a Web Worker) in the Admin's own browser. Publish is blocked until that render succeeds. The Cloudflare Worker and D1 never execute OpenSCAD; they only ever store an already-validated `.scad` source, its parsed Parameters, and a thumbnail captured from that successful render.
+
+We considered running the validation render server-side, inside the Worker itself, so Publish could be a single API call with no client-side dependency. We rejected it: Cloudflare Workers are V8 isolates with tight per-request CPU-time limits, and openscad-wasm's Emscripten build (plus font loading for `text()`) is a genuinely heavy compute workload with no established precedent running inside Workers. Pursuing it would mean real spike/investigation risk for a validation feature the existing client-side pipeline already solves for free — every end user's browser already proves this exact pipeline works.
