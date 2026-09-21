@@ -6,6 +6,7 @@ import { estimateComplexity, complexityMessage } from "../customizer/estimateCom
 import { applyManifest, type TemplateManifest } from "../templates/applyManifest";
 import { defaultConfiguration } from "../templates/defaultConfiguration";
 import { useRenderMesh } from "../state/useRenderMesh";
+import { useServerPreview } from "../state/useServerPreview";
 import { Viewer } from "../components/Customize/Viewer";
 import { ParameterPanel } from "../components/Customize/ParameterPanel";
 import { fetchTemplateDetail } from "../api/client";
@@ -66,10 +67,8 @@ export function AdminEditor() {
     [parsedParams, manifest],
   );
   const manifestableParams = parsedParams.filter((p) => !p.hidden);
-  const complexityHint = useMemo(
-    () => complexityMessage(estimateComplexity(source)),
-    [source],
-  );
+  const complexity = useMemo(() => estimateComplexity(source), [source]);
+  const complexityHint = useMemo(() => complexityMessage(complexity), [complexity]);
 
   const draftTemplate: Template = useMemo(
     () => ({
@@ -92,19 +91,34 @@ export function AdminEditor() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [paramSignature]);
 
-  const { geometry, loading: rendering, error: renderError } = useRenderMesh(
-    draftTemplate,
-    config,
-  );
+  const {
+    geometry: clientGeometry,
+    loading: rendering,
+    error: renderError,
+    skipped,
+    renderInBrowser,
+  } = useRenderMesh(draftTemplate, config, complexity.hasExpensiveLoop);
+  const serverPreview = useServerPreview();
   const canvasElRef = useRef<HTMLCanvasElement | null>(null);
+
+  // While skipped, the client pipeline never ran (see useRenderMesh) — the
+  // on-demand server preview is the only source of "does this look right"
+  // feedback, same as it is for the public Customize view.
+  const geometry = skipped ? serverPreview.geometry : clientGeometry;
+  const previewLoading = skipped ? serverPreview.working : rendering;
+  const previewError = skipped ? serverPreview.error : renderError;
 
   const canPublish =
     !loading &&
-    !rendering &&
-    !renderError &&
+    !previewLoading &&
+    !previewError &&
     geometry !== null &&
     name.trim() !== "" &&
     publishStage === null;
+
+  function handleRenderOnServer() {
+    serverPreview.run(() => submitAdminRender(source, visibleConfiguration(appliedParams, config)));
+  }
 
   function handleConfigChange(paramName: string, value: Configuration[string]) {
     setConfig((prev) => ({ ...prev, [paramName]: value }));
@@ -214,9 +228,9 @@ export function AdminEditor() {
       </header>
 
       {saveError && <p className="gallery-error">{saveError}</p>}
-      {!rendering && renderError && (
+      {!previewLoading && previewError && (
         <p className="admin-render-error">
-          Won't publish until this renders successfully: {renderError}
+          Won't publish until this renders successfully: {previewError}
         </p>
       )}
 
@@ -281,13 +295,36 @@ export function AdminEditor() {
         <div className="admin-editor-preview">
           <Viewer
             geometry={geometry}
-            loading={rendering}
-            error={renderError}
+            loading={previewLoading}
+            error={previewError}
             color={PREVIEW_COLOR}
             complexityMessage={complexityHint}
+            loadingMessage={skipped ? serverPreview.message : undefined}
             onCanvasReady={(canvas) => (canvasElRef.current = canvas)}
+            emptyState={
+              skipped && (
+                <div className="complex-design-cta">
+                  <p>{complexityHint ?? "This design is complex and may be slow to preview."}</p>
+                  <button className="export-button" onClick={handleRenderOnServer}>
+                    Render on server
+                  </button>
+                  <button className="admin-link" onClick={renderInBrowser}>
+                    Render in browser anyway
+                  </button>
+                </div>
+              )
+            }
           />
-          {complexityHint && <p className="complexity-hint">{complexityHint}</p>}
+          {complexityHint && !skipped && <p className="complexity-hint">{complexityHint}</p>}
+          {skipped && geometry && (
+            <p className="complexity-hint">
+              Server preview shown — click{" "}
+              <button className="link-button" onClick={handleRenderOnServer}>
+                Render on server
+              </button>{" "}
+              again after changing values to refresh it.
+            </p>
+          )}
           <div className="admin-editor-params">
             <ParameterPanel parameters={appliedParams} config={config} onChange={handleConfigChange} />
           </div>

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls, Grid, Center } from "@react-three/drei";
 import type { BufferGeometry } from "three";
@@ -12,6 +12,15 @@ interface ViewerProps {
   color: string;
   /** From estimateComplexity/complexityMessage — swaps in once a render runs long. */
   complexityMessage?: string | null;
+  /** Overrides the loading overlay's text immediately (no delay) — for a
+   * server render's live progress ("In queue…", "Rendering on the
+   * server…"), which is meaningful from the start rather than only once a
+   * render has been stalling a while like complexityMessage is. */
+  loadingMessage?: string | null;
+  /** Shown instead of an empty scene when there's no geometry, nothing
+   * loading, and no error — e.g. a call-to-action for a design flagged too
+   * expensive to auto-render (see useRenderMesh's skipAutoRender). */
+  emptyState?: ReactNode;
   /** Admin Panel thumbnail capture needs the raw canvas element; unused by the public Customize view. */
   onCanvasReady?: (canvas: HTMLCanvasElement) => void;
 }
@@ -22,6 +31,8 @@ export function Viewer({
   error,
   color,
   complexityMessage,
+  loadingMessage: loadingMessageOverride,
+  emptyState,
   onCanvasReady,
 }: ViewerProps) {
   const [showComplexityHint, setShowComplexityHint] = useState(false);
@@ -36,7 +47,8 @@ export function Viewer({
   }, [loading]);
 
   const loadingMessage =
-    showComplexityHint && complexityMessage ? complexityMessage : "Rendering…";
+    loadingMessageOverride ??
+    (showComplexityHint && complexityMessage ? complexityMessage : "Rendering…");
 
   return (
     <div className="viewer">
@@ -68,17 +80,22 @@ export function Viewer({
           Couldn't render with these settings — showing the last working version.
         </div>
       )}
+      {!loading && !error && !geometry && emptyState && (
+        <div className="viewer-overlay viewer-empty-state">{emptyState}</div>
+      )}
     </div>
   );
 }
 
 function MeshView({ geometry, color }: { geometry: BufferGeometry; color: string }) {
+  // A geometry can now be redisplayed later (useRenderMesh caches by
+  // source+Configuration — see CONTEXT.md: Render), so ownership/disposal
+  // belongs to whichever cache holds it, not to this component; disposing
+  // it here on every prop change would corrupt a later cache hit.
   const prepared = useMemo(() => {
     geometry.computeVertexNormals();
     return geometry;
   }, [geometry]);
-
-  useEffect(() => () => prepared.dispose(), [prepared]);
 
   return (
     <mesh geometry={prepared} castShadow receiveShadow>
