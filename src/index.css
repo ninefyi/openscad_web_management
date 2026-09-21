@@ -112,12 +112,6 @@ button {
   color: var(--accent);
 }
 
-.template-card-thumb-upload {
-  font-size: 2rem;
-  color: var(--muted);
-  background: #f4f4f5;
-}
-
 .template-card-body {
   padding: 1rem;
 }

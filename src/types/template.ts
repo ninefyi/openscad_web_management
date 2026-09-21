@@ -69,5 +69,4 @@ export interface Template {
   thumbnail?: string;
   source: string;
   parameters: Parameter[];
-  kind: "builtin" | "uploaded";
 }

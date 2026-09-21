@@ -71,7 +71,6 @@ export function AdminEditor() {
       name: name || "Untitled",
       source,
       parameters: appliedParams,
-      kind: "builtin",
     }),
     [id, name, source, appliedParams],
   );

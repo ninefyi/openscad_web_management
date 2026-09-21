@@ -35,6 +35,4 @@ Deploying for real (D1/R2/Pages/Access setup) is a one-time, account-level proce
 
 ## Adding/editing templates
 
-Once deployed, do this through the Admin Panel at `/admin` — that's the point of v2. For the local starter set specifically (`src/templates/builtin/`, what `seed-d1.mjs` seeds), edit those files directly and re-run `npm run d1:seed:local` / `npm run d1:seed:remote`.
-
-Uploaded `.scad` files (via the Gallery's "Upload your own" card) are unaffected by any of this — still session-only, browser-only, never reach the server (see CONTEXT.md: Uploaded Template).
+Once deployed, do this through the Admin Panel at `/admin` — that's the point of v2. End users can only browse and customize what's published there; there's no end-user upload path (removed — see CONTEXT.md: Template). For the local starter set specifically (`src/templates/builtin/`, what `seed-d1.mjs` seeds), edit those files directly and re-run `npm run d1:seed:local` / `npm run d1:seed:remote`.

@@ -43,7 +43,6 @@ export function toTemplate(detail: TemplateDetail): Template {
     thumbnail: detail.hasThumbnail ? `/api/templates/${detail.id}/thumbnail` : undefined,
     source: detail.source,
     parameters: applyManifest(parsed, manifest),
-    kind: "builtin",
   };
 }
 

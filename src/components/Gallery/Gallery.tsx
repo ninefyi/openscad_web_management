@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { listBuiltinTemplates, type TemplateSummary } from "../../api/client";
 import { TemplateCard } from "./TemplateCard";
-import { UploadCard } from "./UploadCard";
 
 export function Gallery() {
   const [templates, setTemplates] = useState<TemplateSummary[] | null>(null);
@@ -26,7 +25,6 @@ export function Gallery() {
           {templates.map((template) => (
             <TemplateCard key={template.id} template={template} />
           ))}
-          <UploadCard />
         </div>
       )}
     </div>

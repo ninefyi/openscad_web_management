@@ -9,16 +9,12 @@ Rendering itself is unchanged from v1: a Template + Configuration is still evalu
 ### Templates & Parameters
 
 **Template**:
-A parametric OpenSCAD design (`.scad` source plus its Customizer comments) that the Customize view turns into an editable Mesh. Comes in two kinds: Built-in and Uploaded.
+A parametric OpenSCAD design (`.scad` source plus its Customizer comments) that the Customize view turns into an editable Mesh. Every Template is a Built-in Template — end users can only browse and customize what the Admin has published, they can no longer supply their own `.scad` file (that end-user upload path existed early in v2 and was removed; see git history if it's ever wanted back).
 _Avoid_: Model, Design, File
 
 **Built-in Template**:
 A Template curated by the Admin and shown in the Gallery. May have a Template Manifest. Stored in D1 and served live by the Worker; the Admin manages it through the Admin Panel, and a successful Publish is visible to end users immediately, with no redeploy. (In v1, this was instead a file bundled with the app at build time, hand-edited and shipped via a normal code deploy — no Admin role existed.)
 _Avoid_: Starter template, Sample
-
-**Uploaded Template**:
-A Template supplied by the user via file upload, for the current session only. Never has a Template Manifest; its Parameters come from Customizer comments where present and are otherwise Inferred.
-_Avoid_: Custom template, User file
 
 **Template Manifest**:
 The optional display-override data for a Built-in Template — overriding Control labels, adding a Gallery thumbnail/description, reordering fields, or force-hiding a Parameter — without touching the `.scad` file's own Customizer comments. Only Built-in Templates can have one. It can hide additional Parameters, but can never un-hide a Parameter the `.scad` file itself marked Hidden. Stored as a D1 row's fields, edited through the Admin Panel. (In v1, this was a `template.json` sidecar file instead.)
@@ -57,7 +53,7 @@ _Avoid_: Model, Geometry
 ### Screens & Actions
 
 **Gallery**:
-The home screen: a grid of Built-in Template thumbnails plus an entry point to add an Uploaded Template.
+The home screen: a grid of Built-in Template thumbnails.
 _Avoid_: Home, Library, Catalog
 
 **Customize view**:
@@ -84,4 +80,4 @@ _Avoid_: Dashboard, CMS, Backend
 
 **Publish**:
 The Admin's action of committing a new or edited Built-in Template so it's visible in the live Gallery. Blocked until the Template Renders successfully in the Admin's own browser, using the same client-side pipeline end users get. There is no separate draft or review state: a Template is either successfully Published — live immediately — or not persisted at all. See [ADR-0002](./docs/adr/0002-admin-validation-runs-client-side.md).
-_Avoid_: Save, Save Draft, Upload (Upload is a distinct, unrelated end-user action — see Uploaded Template)
+_Avoid_: Save, Save Draft, Upload
