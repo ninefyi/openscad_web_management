@@ -1,4 +1,4 @@
-# sukjab_scad (v2)
+# openscad web management (v2)
 
 A web app that lets non-technical users customize parametric OpenSCAD models through a generated UI and export the result as an STL file. This is the `v2` branch: the Gallery and Customize view are served live by a Cloudflare Worker backed by D1, and an authenticated Admin manages the Built-in Template library through an Admin Panel. The `v1` branch is the original fully static, backend-less version of the same app and is frozen — its own `CONTEXT.md` describes it as it was.
 
