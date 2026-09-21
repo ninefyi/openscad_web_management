@@ -1,6 +1,6 @@
-# Deploying v2 to Cloudflare
+# Deploying OpenSCAD Web Management to Cloudflare
 
-Everything in this repo is ready to go — the pieces below all need your Cloudflare account and can't be done from here. Run them from the `v2` branch, in order.
+Everything in this repo is ready to go — the pieces below all need your Cloudflare account and can't be done from here. Run them from the `main` branch, in order.
 
 ## 1. Log in
 
@@ -13,7 +13,7 @@ Opens a browser window to authorize Wrangler against your Cloudflare account.
 ## 2. Create the D1 database
 
 ```bash
-npx wrangler d1 create sukjab-scad
+npx wrangler d1 create openscad-web-management
 ```
 
 This prints a `database_id`. Paste it into [`wrangler.toml`](../wrangler.toml), replacing `REPLACE_WITH_D1_DATABASE_ID`.
@@ -28,7 +28,7 @@ npm run d1:seed:remote
 ## 3. Create the R2 bucket (thumbnails)
 
 ```bash
-npx wrangler r2 bucket create sukjab-scad-thumbnails
+npx wrangler r2 bucket create openscad-web-management-thumbnails
 ```
 
 No further config needed — [`wrangler.toml`](../wrangler.toml) already binds it as `THUMBNAILS`.
@@ -36,7 +36,7 @@ No further config needed — [`wrangler.toml`](../wrangler.toml) already binds i
 ## 4. Create the Pages project
 
 ```bash
-npx wrangler pages project create sukjab-scad
+npx wrangler pages project create openscad-web-management
 ```
 
 Then either deploy directly:
@@ -46,7 +46,7 @@ npm run build
 npx wrangler pages deploy dist
 ```
 
-...or connect the `v2` branch to this project in the Cloudflare dashboard for git-push deploys (build command `npm run build`, output directory `dist`).
+...or connect the `main` branch to this project in the Cloudflare dashboard for git-push deploys (build command `npm run build`, output directory `dist`).
 
 ## 5. Protect the Admin Panel with Cloudflare Access
 

@@ -1,6 +1,6 @@
-# openscad web management (v2)
+# OpenSCAD Web Management
 
-A web app that lets non-technical users customize parametric OpenSCAD models through a generated UI and export the result as an STL file. This is the `v2` branch: the Gallery and Customize view are served live by a Cloudflare Worker backed by D1, and an authenticated Admin manages the Built-in Template library through an Admin Panel. The `v1` branch is the original fully static, backend-less version of the same app and is frozen — its own `CONTEXT.md` describes it as it was.
+A web app that lets non-technical users customize parametric OpenSCAD models through a generated UI and export the result as an STL file. The Gallery and Customize view are served live by a Cloudflare Worker backed by D1, and an authenticated Admin manages the Built-in Template library through an Admin Panel. The `v1` branch is the original fully static, backend-less version of the same app and is frozen — its own `CONTEXT.md` describes it as it was.
 
 Rendering itself is unchanged from v1: a Template + Configuration is still evaluated into a Mesh entirely client-side, in the end user's (or Admin's) own browser.
 
@@ -47,7 +47,7 @@ The current set of Parameter values a user has dialed in for a Template during t
 _Avoid_: Design, Customization, Setup
 
 **Render**:
-The Web Worker's evaluation of a Template + Configuration through openscad-wasm into a Mesh. Always a full, exact evaluation — sukjab_scad never uses OpenSCAD's fast/approximate "Preview" mode, so the same Mesh is valid for both the Viewer and Export. See [ADR-0001](./docs/adr/0001-always-render-exact-geometry.md).
+The Web Worker's evaluation of a Template + Configuration through openscad-wasm into a Mesh. Always a full, exact evaluation — OpenSCAD Web Management never uses OpenSCAD's fast/approximate "Preview" mode, so the same Mesh is valid for both the Viewer and Export. See [ADR-0001](./docs/adr/0001-always-render-exact-geometry.md).
 _Avoid_: Compile, Build, Preview (Preview is a distinct OpenSCAD concept this app deliberately does not use)
 
 **Mesh**:
@@ -75,7 +75,7 @@ _Avoid_: Download, Save
 ### Administration (v2 only)
 
 **Admin**:
-The single authenticated role, gated by Cloudflare Access, that can create, edit, rename, and delete Built-in Templates through the Admin Panel. sukjab_scad has no end-user accounts at all — Admin is the only authenticated identity in the system.
+The single authenticated role, gated by Cloudflare Access, that can create, edit, rename, and delete Built-in Templates through the Admin Panel. OpenSCAD Web Management has no end-user accounts at all — Admin is the only authenticated identity in the system.
 _Avoid_: Operator, Curator, Owner, User
 
 **Admin Panel**:

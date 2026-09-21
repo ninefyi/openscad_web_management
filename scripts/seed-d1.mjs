@@ -44,7 +44,7 @@ try {
     "wrangler",
     "d1",
     "execute",
-    "sukjab-scad",
+    "openscad-web-management",
     remote ? "--remote" : "--local",
     "--file",
     tmpFile,

@@ -1,6 +1,6 @@
-# openscad web management (v2)
+# OpenSCAD Web Management
 
-A web app that lets non-technical users customize parametric OpenSCAD designs through a generated UI, with a live 3D preview and one-click STL export. This is the `v2` branch: the Gallery and Customize view are served live by a Cloudflare Worker (Pages Functions) backed by D1, and an authenticated Admin manages the Built-in Template library through an Admin Panel. The `v1` branch is the original fully static, backend-less version of the same app and is frozen — see its own README/CONTEXT.md.
+A web app that lets non-technical users customize parametric OpenSCAD designs through a generated UI, with a live 3D preview and one-click STL export. The Gallery and Customize view are served live by a Cloudflare Worker (Pages Functions) backed by D1, and an authenticated Admin manages the Built-in Template library through an Admin Panel. The `v1` branch is the original fully static, backend-less version of the same app and is frozen — see its own README/CONTEXT.md.
 
 See [CONTEXT.md](./CONTEXT.md) for the project's glossary and [docs/adr](./docs/adr) for architecture decisions.
 

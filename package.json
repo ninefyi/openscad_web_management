@@ -1,5 +1,5 @@
 {
-  "name": "sukjab-scad",
+  "name": "openscad-web-management",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -9,8 +9,8 @@
     "lint": "oxlint",
     "preview": "vite preview",
     "pages:dev": "vite build && wrangler pages dev dist --port 8789",
-    "d1:migrate:local": "wrangler d1 migrations apply sukjab-scad --local",
-    "d1:migrate:remote": "wrangler d1 migrations apply sukjab-scad --remote",
+    "d1:migrate:local": "wrangler d1 migrations apply openscad-web-management --local",
+    "d1:migrate:remote": "wrangler d1 migrations apply openscad-web-management --remote",
     "d1:seed:local": "node scripts/seed-d1.mjs",
     "d1:seed:remote": "node scripts/seed-d1.mjs --remote"
   },

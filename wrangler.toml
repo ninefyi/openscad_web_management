@@ -1,19 +1,19 @@
-name = "sukjab-scad"
+name = "openscad-web-management"
 pages_build_output_dir = "dist"
 compatibility_date = "2026-09-01"
 
-# Created by `npx wrangler d1 create sukjab-scad` — paste the real database_id
-# it prints back here before deploying. Local dev doesn't need it (Wrangler
-# runs D1 against a local SQLite file automatically).
+# Created by `npx wrangler d1 create openscad-web-management` — paste the real
+# database_id it prints back here before deploying. Local dev doesn't need it
+# (Wrangler runs D1 against a local SQLite file automatically).
 [[d1_databases]]
 binding = "DB"
-database_name = "sukjab-scad"
+database_name = "openscad-web-management"
 database_id = "REPLACE_WITH_D1_DATABASE_ID"
 
-# Created by `npx wrangler r2 bucket create sukjab-scad-thumbnails`.
+# Created by `npx wrangler r2 bucket create openscad-web-management-thumbnails`.
 [[r2_buckets]]
 binding = "THUMBNAILS"
-bucket_name = "sukjab-scad-thumbnails"
+bucket_name = "openscad-web-management-thumbnails"
 
 [vars]
 ENVIRONMENT = "production"

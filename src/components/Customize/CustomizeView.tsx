@@ -8,7 +8,7 @@ import { ExportButton } from "./ExportButton";
 import { ColorPicker } from "./ColorPicker";
 
 const DEFAULT_COLOR = "#6366f1";
-const COLOR_STORAGE_KEY = "sukjab_scad.viewerColor";
+const COLOR_STORAGE_KEY = "openscad-web-management.viewerColor";
 
 function loadStoredColor(): string {
   try {
