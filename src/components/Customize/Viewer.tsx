@@ -1,18 +1,43 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls, Grid, Center } from "@react-three/drei";
 import type { BufferGeometry } from "three";
+
+const SLOW_RENDER_HINT_DELAY_MS = 8000;
 
 interface ViewerProps {
   geometry: BufferGeometry | null;
   loading: boolean;
   error: string | null;
   color: string;
+  /** From estimateComplexity/complexityMessage — swaps in once a render runs long. */
+  complexityMessage?: string | null;
   /** Admin Panel thumbnail capture needs the raw canvas element; unused by the public Customize view. */
   onCanvasReady?: (canvas: HTMLCanvasElement) => void;
 }
 
-export function Viewer({ geometry, loading, error, color, onCanvasReady }: ViewerProps) {
+export function Viewer({
+  geometry,
+  loading,
+  error,
+  color,
+  complexityMessage,
+  onCanvasReady,
+}: ViewerProps) {
+  const [showComplexityHint, setShowComplexityHint] = useState(false);
+
+  useEffect(() => {
+    if (!loading) {
+      setShowComplexityHint(false);
+      return;
+    }
+    const timer = setTimeout(() => setShowComplexityHint(true), SLOW_RENDER_HINT_DELAY_MS);
+    return () => clearTimeout(timer);
+  }, [loading]);
+
+  const loadingMessage =
+    showComplexityHint && complexityMessage ? complexityMessage : "Rendering…";
+
   return (
     <div className="viewer">
       <Canvas
@@ -37,7 +62,7 @@ export function Viewer({ geometry, loading, error, color, onCanvasReady }: Viewe
         />
         <OrbitControls makeDefault />
       </Canvas>
-      {loading && <div className="viewer-overlay viewer-loading">Rendering…</div>}
+      {loading && <div className="viewer-overlay viewer-loading">{loadingMessage}</div>}
       {!loading && error && (
         <div className="viewer-overlay viewer-error">
           Couldn't render with these settings — showing the last working version.

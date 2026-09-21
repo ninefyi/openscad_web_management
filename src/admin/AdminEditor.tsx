@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import type { Configuration, Template } from "../types/template";
 import { parseCustomizer } from "../customizer/parseCustomizer";
+import { estimateComplexity, complexityMessage } from "../customizer/estimateComplexity";
 import { applyManifest, type TemplateManifest } from "../templates/applyManifest";
 import { defaultConfiguration } from "../templates/defaultConfiguration";
 import { useRenderMesh } from "../state/useRenderMesh";
@@ -64,6 +65,10 @@ export function AdminEditor() {
     [parsedParams, manifest],
   );
   const manifestableParams = parsedParams.filter((p) => !p.hidden);
+  const complexityHint = useMemo(
+    () => complexityMessage(estimateComplexity(source)),
+    [source],
+  );
 
   const draftTemplate: Template = useMemo(
     () => ({
@@ -245,8 +250,10 @@ export function AdminEditor() {
             loading={rendering}
             error={renderError}
             color={PREVIEW_COLOR}
+            complexityMessage={complexityHint}
             onCanvasReady={(canvas) => (canvasElRef.current = canvas)}
           />
+          {complexityHint && <p className="complexity-hint">{complexityHint}</p>}
           <div className="admin-editor-params">
             <ParameterPanel parameters={appliedParams} config={config} onChange={handleConfigChange} />
           </div>
