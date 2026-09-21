@@ -2,6 +2,10 @@ name = "openscad-render-worker"
 main = "src/index.ts"
 compatibility_date = "2026-09-01"
 
+# This Worker is a queue consumer, not a public HTTP endpoint — no route to expose.
+workers_dev = false
+preview_urls = false
+
 # The actual render engine — native OpenSCAD in a container (see
 # container/Dockerfile), not the WASM build the frontend uses.
 [[containers]]
