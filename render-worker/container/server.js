@@ -67,7 +67,17 @@ const server = http.createServer(async (req, res) => {
   try {
     await writeFile(inputPath, source, "utf8");
 
-    const args = [inputPath, ...(defines ?? []).flatMap((d) => ["-D", d]), "-o", outputPath];
+    // --backend=manifold: CGAL is still openscad-nightly's default even
+    // post-graduation, so this has to be passed explicitly every render —
+    // the older --enable=manifold spelling silently no-ops back to CGAL
+    // instead of erroring, so a stale flag here would fail silently too.
+    const args = [
+      inputPath,
+      "--backend=manifold",
+      ...(defines ?? []).flatMap((d) => ["-D", d]),
+      "-o",
+      outputPath,
+    ];
     const { code, output } = await runOpenscad(args);
 
     if (code !== 0) {

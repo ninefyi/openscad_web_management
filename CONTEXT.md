@@ -43,7 +43,7 @@ The current set of Parameter values a user has dialed in for a Template during t
 _Avoid_: Design, Customization, Setup
 
 **Render**:
-Evaluating a Template + Configuration into a Mesh. Always a full, exact evaluation — OpenSCAD Web Management never uses OpenSCAD's fast/approximate "Preview" mode. See [ADR-0001](./docs/adr/0001-always-render-exact-geometry.md). Happens on one of two engines depending on what triggered it: the Customize view and Admin Panel's live preview always Render client-side, in a Web Worker through openscad-wasm (unchanged since ADR-0001, kept fast and free by design — see [ADR-0004](./docs/adr/0004-hybrid-client-and-server-rendering.md)); an Export Job always Renders server-side, through native OpenSCAD.
+Evaluating a Template + Configuration into a Mesh. Always a full evaluation — OpenSCAD Web Management never uses OpenSCAD's fast/approximate "Preview" mode. See [ADR-0001](./docs/adr/0001-always-render-exact-geometry.md). Happens on one of two engines depending on what triggered it, and the two now use different geometry backends: the Customize view and Admin Panel's live preview always Render client-side, in a Web Worker through openscad-wasm on the CGAL backend (unchanged since ADR-0001, kept fast and free by design — see [ADR-0004](./docs/adr/0004-hybrid-client-and-server-rendering.md)); an Export Job always Renders server-side, through native OpenSCAD on the Manifold backend — much faster, at the cost of the two engines being able to disagree on precision-sensitive geometry. See [ADR-0006](./docs/adr/0006-manifold-backend-for-server-side-render.md).
 _Avoid_: Compile, Build, Preview (Preview is a distinct OpenSCAD concept this app deliberately does not use)
 
 **Mesh**:
