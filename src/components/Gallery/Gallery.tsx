@@ -10,6 +10,7 @@ export function Gallery({ onSelect }: GalleryProps) {
   return (
     <div className="gallery">
       <header className="gallery-header">
+        <img className="gallery-logo" src="/favicon.png" alt="Sukjai Lab" />
         <h1>sukjab_scad</h1>
         <p>Pick a design, adjust it to fit, export it ready to print.</p>
       </header>
