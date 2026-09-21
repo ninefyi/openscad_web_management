@@ -30,21 +30,7 @@ function buildTemplate(entry: BuiltinEntry): Template {
     thumbnail: entry.manifest.thumbnail,
     source: entry.source,
     parameters: applyManifest(parsed, entry.manifest),
-    kind: "builtin",
   };
 }
 
 export const builtinTemplates: Template[] = entries.map(buildTemplate);
-
-let uploadedCounter = 0;
-
-export function templateFromUpload(fileName: string, source: string): Template {
-  uploadedCounter += 1;
-  return {
-    id: `uploaded-${uploadedCounter}-${Date.now()}`,
-    name: fileName.replace(/\.scad$/i, ""),
-    source,
-    parameters: parseCustomizer(source),
-    kind: "uploaded",
-  };
-}

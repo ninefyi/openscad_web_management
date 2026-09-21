@@ -1,7 +1,6 @@
 import { builtinTemplates } from "../../templates/registry";
 import type { Template } from "../../types/template";
 import { TemplateCard } from "./TemplateCard";
-import { UploadCard } from "./UploadCard";
 
 interface GalleryProps {
   onSelect: (template: Template) => void;
@@ -18,7 +17,6 @@ export function Gallery({ onSelect }: GalleryProps) {
         {builtinTemplates.map((template) => (
           <TemplateCard key={template.id} template={template} onSelect={onSelect} />
         ))}
-        <UploadCard onUploaded={onSelect} />
       </div>
     </div>
   );

@@ -7,16 +7,12 @@ A static, client-side web app that lets non-technical users customize parametric
 ### Templates & Parameters
 
 **Template**:
-A parametric OpenSCAD design (`.scad` source plus its Customizer comments) that the Customize view turns into an editable Mesh. Comes in two kinds: Built-in and Uploaded.
+A parametric OpenSCAD design (`.scad` source plus its Customizer comments) that the Customize view turns into an editable Mesh. Every Template is a Built-in Template — end users can only browse and customize what the app operator has bundled, they can't supply their own `.scad` file (that end-user upload path existed early on and was removed; see git history if it's ever wanted back).
 _Avoid_: Model, Design, File
 
 **Built-in Template**:
 A Template curated by the app operator, bundled with the app, and shown in the Gallery. May ship with a Template Manifest.
 _Avoid_: Starter template, Sample
-
-**Uploaded Template**:
-A Template supplied by the user via file upload, for the current session only. Never has a Template Manifest; its Parameters come from Customizer comments where present and are otherwise Inferred.
-_Avoid_: Custom template, User file
 
 **Template Manifest**:
 An optional JSON sidecar (`template.json`) for a Built-in Template that overrides Control labels, adds a Gallery thumbnail/description, reorders fields, or force-hides a Parameter — without touching the `.scad` file's own Customizer comments. Only Built-in Templates can have one. It can hide additional Parameters, but can never un-hide a Parameter the `.scad` file itself marked Hidden.
@@ -55,7 +51,7 @@ _Avoid_: Model, Geometry
 ### Screens & Actions
 
 **Gallery**:
-The home screen: a grid of Built-in Template thumbnails plus an entry point to add an Uploaded Template.
+The home screen: a grid of Built-in Template thumbnails.
 _Avoid_: Home, Library, Catalog
 
 **Customize view**:

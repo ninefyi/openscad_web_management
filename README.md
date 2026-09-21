@@ -35,4 +35,4 @@ These are the official pre-built openscad-wasm release artifacts (from the [2022
 2. Add a `template.json` next to it (see the existing templates for the shape: `name`, `description`, optional `labels`/`order`/`hide`).
 3. Register both in `src/templates/registry.ts`.
 
-Uploaded `.scad` files (via the Gallery's "Upload your own" card) go through the same parser with no manifest — unannotated top-level variables still get a best-guess input.
+This is the only way to add a template — end users can only browse and customize what's bundled here; there's no end-user upload path (removed — see CONTEXT.md: Template).
