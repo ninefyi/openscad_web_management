@@ -37,6 +37,13 @@ button {
   padding: 2.5rem 1.5rem 4rem;
 }
 
+.gallery-logo {
+  width: 48px;
+  height: 48px;
+  object-fit: contain;
+  margin-bottom: 0.5rem;
+}
+
 .gallery-header h1 {
   margin: 0 0 0.25rem;
   font-size: 1.75rem;
