@@ -77,8 +77,10 @@ The Three.js/@react-three/fiber 3D pane in the Customize view that displays the 
 _Avoid_: Preview, Canvas
 
 **Export**:
-The user action of downloading an STL file for the current Configuration. Always goes through a fresh Export Job (a server-side Render via native OpenSCAD) — never a re-export of the Viewer's own client-side Mesh, even though the Viewer is usually already showing the identical result. Not instant: the customer sees the Export Job's progress (queued/rendering) until the file is ready to download.
+The user action of downloading an STL file for the current Configuration — requires a signed-in Account (client-side gate only; see below). Always goes through a fresh Export Job (a server-side Render via native OpenSCAD) — never a re-export of the Viewer's own client-side Mesh, even though the Viewer is usually already showing the identical result. Not instant: the customer sees the Export Job's progress (queued/rendering) until the file is ready to download.
 _Avoid_: Download, Save (Save is a distinct action now — see Saved Design — that persists a Configuration, not a file download; never use the two words for each other)
+
+Login-gated on the client only: the ExportButton component hides the working Export control behind a "Sign in to export" link when signed out, but the underlying `POST /api/export` endpoint itself still accepts anonymous requests (rate-limited the same as always — see Export Job) because Render on server shares that exact endpoint and is deliberately still anonymous-capable (a complex Template's preview shouldn't require an account). An anonymous caller hitting the API directly can still create an Export Job; only the UI path is gated.
 
 ### Administration (v2 only)
 

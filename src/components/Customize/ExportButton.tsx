@@ -1,6 +1,8 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import type { Configuration, Parameter } from "../../types/template";
 import { submitExport, pollUntilSettled, visibleConfiguration } from "../../api/exportClient";
+import { useAccount } from "../../state/AccountContext";
 
 interface ExportButtonProps {
   templateId: string;
@@ -14,8 +16,12 @@ type ExportState =
   | { phase: "working"; message: string }
   | { phase: "error"; message: string };
 
+// Export requires a signed-in Account (see CONTEXT.md: Export) — unlike
+// Render on server, which stays anonymous-capable since it shares the same
+// Export Job pipeline but never produces a download.
 export function ExportButton({ templateId, parameters, configuration, fileName }: ExportButtonProps) {
   const [state, setState] = useState<ExportState>({ phase: "idle" });
+  const { account } = useAccount();
 
   async function handleExport() {
     setState({ phase: "working", message: "Preparing your file…" });
@@ -56,11 +62,21 @@ export function ExportButton({ templateId, parameters, configuration, fileName }
     }
   }
 
+  if (account === null) {
+    return (
+      <div className="export-control">
+        <Link className="admin-link" to="/login">
+          Sign in to export
+        </Link>
+      </div>
+    );
+  }
+
   return (
     <div className="export-control">
       <button
         className="export-button"
-        disabled={state.phase === "working"}
+        disabled={state.phase === "working" || account === undefined}
         onClick={handleExport}
       >
         {state.phase === "working" ? state.message : "Export STL"}
