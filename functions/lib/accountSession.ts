@@ -36,6 +36,36 @@ export function clearSessionCookieHeader(env: Env): string {
   return `${SESSION_COOKIE_NAME}=; ${cookieAttributes(env, 0)}`;
 }
 
+export interface RequestAccount {
+  id: string;
+  name: string;
+  email: string;
+}
+
+/** Null if there's no cookie, or it doesn't match a live session — the
+ * caller decides whether that's a 401 (a route that requires an Account)
+ * or just an anonymous request (a route, like Export's job creation, that
+ * checks this only to decide which behavior applies). */
+export async function loadAccountFromRequest(
+  request: Request,
+  db: D1Database,
+): Promise<RequestAccount | null> {
+  const sessionId = getSessionCookie(request);
+  if (!sessionId) return null;
+
+  const row = await db
+    .prepare(
+      `SELECT accounts.id, accounts.name, accounts.email
+       FROM account_sessions
+       JOIN accounts ON accounts.id = account_sessions.account_id
+       WHERE account_sessions.id = ? AND account_sessions.expires_at > ?`,
+    )
+    .bind(sessionId, new Date().toISOString())
+    .first<RequestAccount>();
+
+  return row ?? null;
+}
+
 export async function createSession(db: D1Database, accountId: string): Promise<string> {
   const id = crypto.randomUUID();
   const now = new Date();

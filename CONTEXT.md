@@ -59,7 +59,7 @@ A tracked, asynchronous request for a server-side Render. Moves through `queued`
 _Avoid_: Render job, Task, Queue item
 
 **Render on server**:
-The user-facing action of triggering a server-side Render purely to refresh the Viewer — offered only for a Template flagged too expensive to attempt client-side, as an alternative to forcing the client-side attempt anyway. Backed by the same Export Job pipeline an Export uses, but nothing gets downloaded and no file is offered; the customer-facing Customize view submits it exactly like an Export (Template + Configuration) while the Admin Panel submits raw draft source, same as its Publish validation does. Doesn't auto-refresh on further Configuration changes — each click is a new, deliberate Export Job, same one-off-action spirit as an Export rather than the continuous free compute of the client-side preview (see ADR-0004).
+The user-facing action of triggering a server-side Render purely to refresh the Viewer — offered only for a Template flagged too expensive to attempt client-side, as an alternative to forcing the client-side attempt anyway. Backed by the same Export Job pipeline an Export uses (so an identical Configuration hits the same cached result either way), but nothing gets downloaded and no file is offered — and unlike Export, it stays anonymous: the customer-facing Customize view submits it to `POST /api/preview` (a separate endpoint from Export's `POST /api/export`, precisely so gating Export to signed-in Accounts doesn't also block this) with Template + Configuration, while the Admin Panel submits raw draft source to `POST /api/admin/render`, same as its Publish validation does. Doesn't auto-refresh on further Configuration changes — each click is a new, deliberate Export Job, same one-off-action spirit as an Export rather than the continuous free compute of the client-side preview (see ADR-0004).
 _Avoid_: Preview, Server Preview (collides with the OpenSCAD "Preview" mode this app avoids — see Render's own _Avoid_ note)
 
 ### Screens & Actions
@@ -77,10 +77,8 @@ The Three.js/@react-three/fiber 3D pane in the Customize view that displays the 
 _Avoid_: Preview, Canvas
 
 **Export**:
-The user action of downloading an STL file for the current Configuration — requires a signed-in Account (client-side gate only; see below). Always goes through a fresh Export Job (a server-side Render via native OpenSCAD) — never a re-export of the Viewer's own client-side Mesh, even though the Viewer is usually already showing the identical result. Not instant: the customer sees the Export Job's progress (queued/rendering) until the file is ready to download.
+The user action of downloading an STL file for the current Configuration — requires a signed-in Account, enforced both in the UI (ExportButton shows "Sign in to export" when signed out) and at `POST /api/export` itself, which 401s an anonymous request. Always goes through a fresh Export Job (a server-side Render via native OpenSCAD) — never a re-export of the Viewer's own client-side Mesh, even though the Viewer is usually already showing the identical result. Not instant: the customer sees the Export Job's progress (queued/rendering) until the file is ready to download.
 _Avoid_: Download, Save (Save is a distinct action now — see Saved Design — that persists a Configuration, not a file download; never use the two words for each other)
-
-Login-gated on the client only: the ExportButton component hides the working Export control behind a "Sign in to export" link when signed out, but the underlying `POST /api/export` endpoint itself still accepts anonymous requests (rate-limited the same as always — see Export Job) because Render on server shares that exact endpoint and is deliberately still anonymous-capable (a complex Template's preview shouldn't require an account). An anonymous caller hitting the API directly can still create an Export Job; only the UI path is gated.
 
 ### Administration (v2 only)
 

@@ -1,22 +1,22 @@
 import type { Env } from "../../lib/env";
-import { loadAccountFromRequest } from "../../lib/accountSession";
 import { submitTemplateJob } from "../../lib/exportSubmission";
 
-interface ExportRequest {
+interface PreviewRequest {
   templateId: string;
   configuration: Record<string, unknown>;
   sessionToken: string;
 }
 
-// Requires a signed-in Account (see CONTEXT.md: Export) — unlike
-// POST /api/preview, which shares submitTemplateJob but stays anonymous.
+// Anonymous, deliberately — this backs Render on server (see CONTEXT.md),
+// the public Customize view's fallback for a Template too expensive to
+// preview client-side. It shares submitTemplateJob's Export Job pipeline
+// with POST /api/export (so the same Configuration hits the same cache
+// either way) but never requires an Account: gating this the same as
+// Export would also block anonymous visitors from previewing a complex
+// design at all, which is a different feature than Export and wasn't
+// what login-gating Export was meant to restrict.
 export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
-  const account = await loadAccountFromRequest(request, env.DB);
-  if (!account) {
-    return Response.json({ error: "Sign in to export." }, { status: 401 });
-  }
-
-  const body = (await request.json()) as Partial<ExportRequest>;
+  const body = (await request.json()) as Partial<PreviewRequest>;
   if (!body.templateId || !body.configuration || !body.sessionToken) {
     return Response.json(
       { error: "templateId, configuration, and sessionToken are required" },

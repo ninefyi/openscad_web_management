@@ -6,7 +6,7 @@ import { useRenderMesh } from "../../state/useRenderMesh";
 import { useServerPreview } from "../../state/useServerPreview";
 import { useAccount } from "../../state/AccountContext";
 import { estimateComplexity, complexityMessage } from "../../customizer/estimateComplexity";
-import { submitExport, visibleConfiguration } from "../../api/exportClient";
+import { submitPreview, visibleConfiguration } from "../../api/exportClient";
 import { saveDesign } from "../../api/accountClient";
 import { Viewer } from "./Viewer";
 import { ParameterPanel } from "./ParameterPanel";
@@ -77,7 +77,7 @@ export function CustomizeView({ template, onBack, initialConfig }: CustomizeView
 
   function handleRenderOnServer() {
     serverPreview.run(() =>
-      submitExport(template.id, visibleConfiguration(template.parameters, config)),
+      submitPreview(template.id, visibleConfiguration(template.parameters, config)),
     );
   }
 
