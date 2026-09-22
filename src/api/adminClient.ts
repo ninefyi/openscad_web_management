@@ -1,9 +1,10 @@
-import type { TemplateDetail } from "./client";
+import type { TemplateDetail, TemplateSummary } from "./client";
 
 export interface TemplateInput {
   name: string;
   description?: string;
   source: string;
+  isListed?: boolean;
   manifest: { labels: Record<string, string>; order: string[]; hide: string[] };
 }
 
@@ -13,6 +14,34 @@ async function parseOrThrow(res: Response): Promise<TemplateDetail> {
     throw new Error(body.error ?? "Request failed");
   }
   return res.json();
+}
+
+// Unlike listBuiltinTemplates/fetchTemplateDetail in ./client (the public,
+// Listed-filtered endpoints — see CONTEXT.md: Listed), these always show
+// every Template regardless of Listed state, which is what the Admin Panel
+// needs.
+export async function listAdminTemplates(): Promise<TemplateSummary[]> {
+  const res = await fetch("/api/admin/templates");
+  if (!res.ok) throw new Error("Couldn't load templates.");
+  return res.json();
+}
+
+export async function fetchAdminTemplateDetail(id: string): Promise<TemplateDetail> {
+  const res = await fetch(`/api/admin/templates/${id}`);
+  if (!res.ok) throw new Error("That template couldn't be found.");
+  return res.json();
+}
+
+export async function setTemplateListed(
+  id: string,
+  isListed: boolean,
+): Promise<TemplateDetail> {
+  const res = await fetch(`/api/admin/templates/${id}`, {
+    method: "PATCH",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ isListed }),
+  });
+  return parseOrThrow(res);
 }
 
 export async function createTemplate(input: TemplateInput): Promise<TemplateDetail> {

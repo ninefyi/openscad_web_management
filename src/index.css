@@ -157,6 +157,16 @@ button {
   margin: 0;
 }
 
+.customize-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.customize-save-error {
+  margin: 0.5rem 1.25rem 0;
+}
+
 .back-button {
   background: none;
   border: none;
@@ -526,6 +536,18 @@ button {
   max-width: 320px;
 }
 
+.admin-badge-unlisted {
+  margin-left: 0.5rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  background: #f4f4f5;
+  color: var(--muted);
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
 .admin-table-actions {
   display: flex;
   gap: 0.75rem;
@@ -575,6 +597,17 @@ button {
   border: 1px solid var(--border);
   border-radius: 6px;
   font-size: 0.9rem;
+}
+
+.admin-field-checkbox {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.admin-field-checkbox input {
+  width: auto;
+  padding: 0;
 }
 
 .admin-code-editor {
@@ -647,6 +680,114 @@ button {
 
 .admin-editor-params {
   margin-top: 1rem;
+}
+
+/* Account */
+
+.account-nav {
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  font-size: 0.85rem;
+}
+
+.account-nav a,
+.account-nav .link-button {
+  color: var(--muted);
+}
+
+.account-page {
+  max-width: 380px;
+  margin: 3rem auto;
+  padding: 0 1.5rem;
+}
+
+.account-page h1 {
+  font-size: 1.5rem;
+  margin: 0 0 0.5rem;
+}
+
+.account-page-subtitle {
+  color: var(--muted);
+  font-size: 0.9rem;
+  margin: 0 0 1.5rem;
+}
+
+.account-page-footer {
+  margin-top: 1.5rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.account-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.account-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.account-field input {
+  font-weight: 400;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 0.95rem;
+}
+
+.account-error {
+  background: #fef2f2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+  border-radius: 6px;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.85rem;
+  margin: 0;
+}
+
+.my-designs-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.my-designs-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.85rem 1rem;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.my-designs-link {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  text-decoration: none;
+  color: var(--text);
+}
+
+.my-designs-name {
+  font-weight: 600;
+}
+
+.my-designs-template,
+.my-designs-updated {
+  font-size: 0.8rem;
+  color: var(--muted);
 }
 
 /* Responsive */

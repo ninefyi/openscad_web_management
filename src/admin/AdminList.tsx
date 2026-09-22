@@ -1,15 +1,16 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { listBuiltinTemplates, type TemplateSummary } from "../api/client";
-import { deleteTemplate } from "../api/adminClient";
+import type { TemplateSummary } from "../api/client";
+import { deleteTemplate, listAdminTemplates, setTemplateListed } from "../api/adminClient";
 
 export function AdminList() {
   const [templates, setTemplates] = useState<TemplateSummary[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [togglingId, setTogglingId] = useState<string | null>(null);
 
   function reload() {
-    listBuiltinTemplates()
+    listAdminTemplates()
       .then(setTemplates)
       .catch((err: Error) => setError(err.message));
   }
@@ -26,6 +27,18 @@ export function AdminList() {
       alert(err instanceof Error ? err.message : "Couldn't delete this template.");
     } finally {
       setDeletingId(null);
+    }
+  }
+
+  async function handleToggleListed(id: string, isListed: boolean) {
+    setTogglingId(id);
+    try {
+      await setTemplateListed(id, !isListed);
+      reload();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Couldn't update this template.");
+    } finally {
+      setTogglingId(null);
     }
   }
 
@@ -59,11 +72,21 @@ export function AdminList() {
           <tbody>
             {templates.map((t) => (
               <tr key={t.id}>
-                <td>{t.name}</td>
+                <td>
+                  {t.name}
+                  {!t.isListed && <span className="admin-badge-unlisted">Unlisted</span>}
+                </td>
                 <td className="admin-table-description">{t.description}</td>
                 <td>{new Date(t.updatedAt).toLocaleString()}</td>
                 <td className="admin-table-actions">
                   <Link to={`/admin/${t.id}`}>Edit</Link>
+                  <button
+                    className="admin-link"
+                    disabled={togglingId === t.id}
+                    onClick={() => handleToggleListed(t.id, t.isListed)}
+                  >
+                    {t.isListed ? "Unlist" : "List"}
+                  </button>
                   <button
                     className="admin-delete-button"
                     disabled={deletingId === t.id}

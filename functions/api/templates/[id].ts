@@ -7,7 +7,10 @@ export const onRequestGet: PagesFunction<Env> = async ({ env, params }) => {
     .bind(id)
     .first<TemplateRow>();
 
-  if (!row) {
+  // Same "not found" response either way — an unlisted Template's public
+  // Customize URL is meant to be indistinguishable from one that never
+  // existed, not a distinguishable "this exists but is unlisted" state.
+  if (!row || row.is_listed !== 1) {
     return Response.json({ error: "Template not found" }, { status: 404 });
   }
 

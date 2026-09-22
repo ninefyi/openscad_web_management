@@ -9,8 +9,13 @@ import { useRenderMesh } from "../state/useRenderMesh";
 import { useServerPreview } from "../state/useServerPreview";
 import { Viewer } from "../components/Customize/Viewer";
 import { ParameterPanel } from "../components/Customize/ParameterPanel";
-import { fetchTemplateDetail } from "../api/client";
-import { createTemplate, updateTemplate, deleteTemplate, uploadThumbnail } from "../api/adminClient";
+import {
+  createTemplate,
+  updateTemplate,
+  deleteTemplate,
+  uploadThumbnail,
+  fetchAdminTemplateDetail,
+} from "../api/adminClient";
 import { submitAdminRender, pollUntilSettled, visibleConfiguration } from "../api/exportClient";
 
 const PREVIEW_COLOR = "#6366f1";
@@ -33,6 +38,7 @@ export function AdminEditor() {
   const [source, setSource] = useState(isNew ? PLACEHOLDER_SOURCE : "");
   const [labels, setLabels] = useState<Record<string, string>>({});
   const [hide, setHide] = useState<string[]>([]);
+  const [isListed, setIsListed] = useState(true);
 
   const [loading, setLoading] = useState(!isNew);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -41,13 +47,17 @@ export function AdminEditor() {
 
   useEffect(() => {
     if (isNew) return;
-    fetchTemplateDetail(id).then(
+    // The admin-only endpoint, not ../api/client's public one — a template
+    // that's been unlisted (see CONTEXT.md: Listed) 404s on the public path,
+    // but the Admin Panel still needs to load and edit it.
+    fetchAdminTemplateDetail(id).then(
       (detail) => {
         setName(detail.name);
         setDescription(detail.description ?? "");
         setSource(detail.source);
         setLabels(detail.manifest.labels);
         setHide(detail.manifest.hide);
+        setIsListed(detail.isListed);
         setLoading(false);
       },
       (err: Error) => {
@@ -175,6 +185,7 @@ export function AdminEditor() {
         name: name.trim(),
         description: description.trim() || undefined,
         source,
+        isListed,
         manifest: { labels, order: [], hide },
       };
       const saved = isNew ? await createTemplate(input) : await updateTemplate(id, input);
@@ -243,6 +254,14 @@ export function AdminEditor() {
           <label className="admin-field">
             Description
             <input value={description} onChange={(e) => setDescription(e.target.value)} />
+          </label>
+          <label className="admin-field admin-field-checkbox">
+            <input
+              type="checkbox"
+              checked={isListed}
+              onChange={(e) => setIsListed(e.target.checked)}
+            />
+            Listed in Gallery
           </label>
           <label className="admin-field">
             OpenSCAD source

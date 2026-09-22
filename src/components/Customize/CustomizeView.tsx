@@ -1,10 +1,13 @@
 import { useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import type { Configuration, Parameter, Template } from "../../types/template";
 import { defaultConfiguration } from "../../templates/defaultConfiguration";
 import { useRenderMesh } from "../../state/useRenderMesh";
 import { useServerPreview } from "../../state/useServerPreview";
+import { useAccount } from "../../state/AccountContext";
 import { estimateComplexity, complexityMessage } from "../../customizer/estimateComplexity";
 import { submitExport, visibleConfiguration } from "../../api/exportClient";
+import { saveDesign } from "../../api/accountClient";
 import { Viewer } from "./Viewer";
 import { ParameterPanel } from "./ParameterPanel";
 import { ExportButton } from "./ExportButton";
@@ -24,13 +27,19 @@ function loadStoredColor(): string {
 interface CustomizeViewProps {
   template: Template;
   onBack: () => void;
+  /** Pre-populates Configuration from a Saved Design instead of the
+   * Template's bare defaults (see CONTEXT.md: Saved Design) — set when
+   * TemplatePage was reached via a `?designId=` link from My designs. */
+  initialConfig?: Configuration;
 }
 
-export function CustomizeView({ template, onBack }: CustomizeViewProps) {
-  const [config, setConfig] = useState<Configuration>(() =>
-    defaultConfiguration(template),
+export function CustomizeView({ template, onBack, initialConfig }: CustomizeViewProps) {
+  const [config, setConfig] = useState<Configuration>(
+    () => initialConfig ?? defaultConfiguration(template),
   );
   const [color, setColor] = useState<string>(loadStoredColor);
+  const { account } = useAccount();
+  const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
 
   const complexity = useMemo(() => estimateComplexity(template.source), [template.source]);
   const complexityHint = useMemo(() => complexityMessage(complexity), [complexity]);
@@ -54,6 +63,7 @@ export function CustomizeView({ template, onBack }: CustomizeViewProps) {
 
   function handleChange(name: string, value: Parameter["defaultValue"]) {
     setConfig((prev) => ({ ...prev, [name]: value }));
+    setSaveState("idle");
   }
 
   function handleColorChange(next: string) {
@@ -71,6 +81,16 @@ export function CustomizeView({ template, onBack }: CustomizeViewProps) {
     );
   }
 
+  async function handleSaveDesign() {
+    setSaveState("saving");
+    try {
+      await saveDesign(template.id, config);
+      setSaveState("saved");
+    } catch {
+      setSaveState("error");
+    }
+  }
+
   return (
     <div className="customize-view">
       <header className="customize-header">
@@ -78,13 +98,32 @@ export function CustomizeView({ template, onBack }: CustomizeViewProps) {
           ← Gallery
         </button>
         <h1>{template.name}</h1>
-        <ExportButton
-          templateId={template.id}
-          parameters={template.parameters}
-          configuration={config}
-          fileName={template.name.replace(/\s+/g, "-").toLowerCase()}
-        />
+        <div className="customize-header-actions">
+          {account === null && (
+            <Link className="admin-link" to="/login">
+              Sign in to save this design
+            </Link>
+          )}
+          {account && (
+            <button className="admin-link" onClick={handleSaveDesign} disabled={saveState === "saving"}>
+              {saveState === "saving"
+                ? "Saving…"
+                : saveState === "saved"
+                  ? "Saved ✓"
+                  : "Save design"}
+            </button>
+          )}
+          <ExportButton
+            templateId={template.id}
+            parameters={template.parameters}
+            configuration={config}
+            fileName={template.name.replace(/\s+/g, "-").toLowerCase()}
+          />
+        </div>
       </header>
+      {saveState === "error" && (
+        <p className="account-error customize-save-error">Couldn't save this design.</p>
+      )}
       <div className="customize-body">
         <Viewer
           geometry={geometry}

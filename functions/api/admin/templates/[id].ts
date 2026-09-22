@@ -5,8 +5,25 @@ interface UpdatePayload {
   name: string;
   description?: string;
   source: string;
+  isListed?: boolean;
   manifest?: { labels?: Record<string, string>; order?: string[]; hide?: string[] };
 }
+
+interface ListedPayload {
+  isListed: boolean;
+}
+
+// Unfiltered — the Admin Panel can load and edit an unlisted Template.
+export const onRequestGet: PagesFunction<Env> = async ({ env, params }) => {
+  const id = params.id as string;
+  const row = await env.DB.prepare("SELECT * FROM templates WHERE id = ?")
+    .bind(id)
+    .first<TemplateRow>();
+  if (!row) {
+    return Response.json({ error: "Template not found" }, { status: 404 });
+  }
+  return Response.json(toDetailDTO(row));
+};
 
 export const onRequestPut: PagesFunction<Env> = async ({ request, env, params }) => {
   const id = params.id as string;
@@ -27,7 +44,7 @@ export const onRequestPut: PagesFunction<Env> = async ({ request, env, params })
 
   await env.DB.prepare(
     `UPDATE templates
-     SET name = ?, description = ?, source = ?, manifest_labels = ?, manifest_order = ?, manifest_hide = ?, updated_at = ?
+     SET name = ?, description = ?, source = ?, manifest_labels = ?, manifest_order = ?, manifest_hide = ?, is_listed = ?, updated_at = ?
      WHERE id = ?`,
   )
     .bind(
@@ -37,10 +54,35 @@ export const onRequestPut: PagesFunction<Env> = async ({ request, env, params })
       JSON.stringify(body.manifest?.labels ?? {}),
       JSON.stringify(body.manifest?.order ?? []),
       JSON.stringify(body.manifest?.hide ?? []),
+      body.isListed === false ? 0 : 1,
       now,
       id,
     )
     .run();
+
+  const row = await env.DB.prepare("SELECT * FROM templates WHERE id = ?")
+    .bind(id)
+    .first<TemplateRow>();
+
+  return Response.json(toDetailDTO(row!));
+};
+
+// A lighter-weight toggle for AdminList's quick action — doesn't require
+// resending the full source/manifest just to flip one flag.
+export const onRequestPatch: PagesFunction<Env> = async ({ request, env, params }) => {
+  const id = params.id as string;
+  const body = (await request.json()) as ListedPayload;
+  const now = new Date().toISOString();
+
+  const result = await env.DB.prepare(
+    "UPDATE templates SET is_listed = ?, updated_at = ? WHERE id = ?",
+  )
+    .bind(body.isListed ? 1 : 0, now, id)
+    .run();
+
+  if (result.meta.changes === 0) {
+    return Response.json({ error: "Template not found" }, { status: 404 });
+  }
 
   const row = await env.DB.prepare("SELECT * FROM templates WHERE id = ?")
     .bind(id)

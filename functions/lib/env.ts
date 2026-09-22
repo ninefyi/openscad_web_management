@@ -12,3 +12,7 @@ export interface Env {
 export interface AdminData extends Record<string, unknown> {
   admin: { email: string };
 }
+
+export interface AccountData extends Record<string, unknown> {
+  account: { id: string; name: string; email: string };
+}

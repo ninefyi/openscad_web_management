@@ -7,6 +7,7 @@ export interface TemplateSummary {
   name: string;
   description: string | null;
   hasThumbnail: boolean;
+  isListed: boolean;
   updatedAt: string;
 }
 

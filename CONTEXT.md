@@ -13,8 +13,12 @@ A parametric OpenSCAD design (`.scad` source plus its Customizer comments) that 
 _Avoid_: Model, Design, File
 
 **Built-in Template**:
-A Template curated by the Admin and shown in the Gallery. May have a Template Manifest. Stored in D1 and served live by the Worker; the Admin manages it through the Admin Panel, and a successful Publish is visible to end users immediately, with no redeploy. (In v1, this was instead a file bundled with the app at build time, hand-edited and shipped via a normal code deploy — no Admin role existed.)
+A Template curated by the Admin and shown in the Gallery. May have a Template Manifest. Stored in D1 and served live by the Worker; the Admin manages it through the Admin Panel, and a successful Publish is visible to end users immediately, with no redeploy. Can be unlisted without being deleted — see Listed. (In v1, this was instead a file bundled with the app at build time, hand-edited and shipped via a normal code deploy — no Admin role existed.)
 _Avoid_: Starter template, Sample
+
+**Listed**:
+A Built-in Template's Listed state controls whether it appears in the public Gallery grid and is reachable at its own Customize URL — an Admin can unlist a Template without deleting it, and the Admin Panel always shows and can edit every Template regardless of Listed state. Defaults to Listed.
+_Avoid_: Hidden (reserved for Hidden Parameter — a different, per-variable concept), Visible, Published (Published is the Admin's create/save action, not a display toggle)
 
 **Template Manifest**:
 The optional display-override data for a Built-in Template — overriding Control labels, adding a Gallery thumbnail/description, reordering fields, or force-hiding a Parameter — without touching the `.scad` file's own Customizer comments. Only Built-in Templates can have one. It can hide additional Parameters, but can never un-hide a Parameter the `.scad` file itself marked Hidden. Stored as a D1 row's fields, edited through the Admin Panel. (In v1, this was a `template.json` sidecar file instead.)
@@ -74,12 +78,12 @@ _Avoid_: Preview, Canvas
 
 **Export**:
 The user action of downloading an STL file for the current Configuration. Always goes through a fresh Export Job (a server-side Render via native OpenSCAD) — never a re-export of the Viewer's own client-side Mesh, even though the Viewer is usually already showing the identical result. Not instant: the customer sees the Export Job's progress (queued/rendering) until the file is ready to download.
-_Avoid_: Download, Save
+_Avoid_: Download, Save (Save is a distinct action now — see Saved Design — that persists a Configuration, not a file download; never use the two words for each other)
 
 ### Administration (v2 only)
 
 **Admin**:
-The single authenticated role, gated by Cloudflare Access, that can create, edit, rename, and delete Built-in Templates through the Admin Panel — or, for scripts, through the same Access application using a Service Token instead of an interactive login. OpenSCAD Web Management has no end-user accounts at all — Admin is the only authenticated identity in the system.
+The single authenticated role, gated by Cloudflare Access, that can create, edit, rename, and delete Built-in Templates through the Admin Panel — or, for scripts, through the same Access application using a Service Token instead of an interactive login. Distinct from a customer's optional Account (see Accounts below) — Admin manages the Built-in Template library; an Account only saves a customer's own Designs and has no administrative capability.
 _Avoid_: Operator, Curator, Owner, User
 
 **Admin Panel**:
@@ -88,4 +92,18 @@ _Avoid_: Dashboard, CMS, Backend
 
 **Publish**:
 The Admin's action of committing a new or edited Built-in Template so it's visible in the live Gallery. Blocked until two checks both pass: the Template Renders successfully in the Admin's own browser (the client-side pipeline end users get — see [ADR-0002](./docs/adr/0002-admin-validation-runs-client-side.md)), and a server-side Export Job of the exact same draft also succeeds (catching the class of bug that only shows up on the native OpenSCAD path — see [ADR-0005](./docs/adr/0005-async-export-job-pipeline.md)). There is no separate draft or review state: a Template is either successfully Published — live immediately — or not persisted at all.
-_Avoid_: Save, Save Draft, Upload
+_Avoid_: Save, Save Draft, Upload (Save now names a distinct customer action — see Saved Design — never use it for an Admin's Publish)
+
+### Accounts (v2 only)
+
+**Account**:
+A free, self-service end-user identity (name, email, password) a customer may optionally create to save their work. Entirely separate from Admin — no billing, no email verification, no "forgot password" in this first version. Login is tracked via an Account session, not Cloudflare Access.
+_Avoid_: User, Subscription, Member
+
+**Account session**:
+The logged-in state for an Account, held in an httpOnly `account_session` cookie backed by a D1 row. Distinct from the anonymous, unauthenticated session token Export's rate limiting uses (see Export) — that token identifies a browser, not a person, and needs no login; the two never intersect.
+_Avoid_: Session (ambiguous with the anonymous export session token — always say "Account session" in full)
+
+**Saved Design**:
+A Template + Configuration an Account has explicitly saved, so it survives beyond the browser tab that created it — the persisted counterpart to the otherwise ephemeral Configuration (see Configuration). Saving one never produces a downloadable file — that's Export, a completely separate action.
+_Avoid_: Project, Draft (this app has no draft concept — see Publish)

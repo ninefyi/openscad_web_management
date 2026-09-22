@@ -1,10 +1,13 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { listBuiltinTemplates, type TemplateSummary } from "../../api/client";
+import { useAccount } from "../../state/AccountContext";
 import { TemplateCard } from "./TemplateCard";
 
 export function Gallery() {
   const [templates, setTemplates] = useState<TemplateSummary[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const { account, logout } = useAccount();
 
   useEffect(() => {
     listBuiltinTemplates()
@@ -14,6 +17,23 @@ export function Gallery() {
 
   return (
     <div className="gallery">
+      <nav className="account-nav">
+        {account === undefined && null}
+        {account === null && (
+          <>
+            <Link to="/login">Sign in</Link>
+            <Link to="/signup">Create account</Link>
+          </>
+        )}
+        {account && (
+          <>
+            <Link to="/designs">My designs</Link>
+            <button className="link-button" onClick={logout}>
+              Sign out
+            </button>
+          </>
+        )}
+      </nav>
       <header className="gallery-header">
         <img className="gallery-logo" src="/favicon.png" alt="Sukjai Lab" />
         <h1>OpenSCAD Web Management</h1>

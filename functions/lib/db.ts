@@ -7,6 +7,7 @@ export interface TemplateRow {
   manifest_order: string;
   manifest_hide: string;
   thumbnail_key: string | null;
+  is_listed: number;
   created_at: string;
   updated_at: string;
 }
@@ -16,6 +17,7 @@ export interface TemplateSummaryDTO {
   name: string;
   description: string | null;
   hasThumbnail: boolean;
+  isListed: boolean;
   updatedAt: string;
 }
 
@@ -34,6 +36,7 @@ export function toSummaryDTO(row: TemplateRow): TemplateSummaryDTO {
     name: row.name,
     description: row.description,
     hasThumbnail: row.thumbnail_key !== null,
+    isListed: row.is_listed === 1,
     updatedAt: row.updated_at,
   };
 }
