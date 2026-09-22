@@ -5,7 +5,15 @@
 // functions/lib/jobs.ts) rather than adding a bcrypt-style dependency,
 // since native Node modules aren't available in the Workers runtime.
 
-const ITERATIONS = 210_000; // current OWASP guidance for PBKDF2-SHA256
+// OWASP's current PBKDF2-SHA256 guidance is 210,000, but the Workers
+// runtime's crypto.subtle hard-caps PBKDF2 at 100,000 iterations and
+// throws NotSupportedError above it — confirmed the hard way: this passed
+// local `wrangler pages dev` testing (its crypto.subtle doesn't enforce the
+// cap) and only failed once deployed to the real production runtime. 100k
+// is itself long-standing OWASP guidance (their minimum for years before
+// the 210k figure), so this isn't a weak fallback, just the ceiling this
+// runtime actually allows.
+const ITERATIONS = 100_000;
 const KEY_LENGTH_BITS = 256;
 const SALT_LENGTH_BYTES = 16;
 const SCHEME = "pbkdf2-sha256";
