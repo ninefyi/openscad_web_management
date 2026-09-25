@@ -1,5 +1,7 @@
 export type JobStatus = "queued" | "rendering" | "done" | "failed";
 
+export type ExportFormat = "stl" | "3mf";
+
 export interface ExportJobRow {
   id: string;
   template_id: string | null;
@@ -9,6 +11,7 @@ export interface ExportJobRow {
   status: JobStatus;
   r2_key: string | null;
   error: string | null;
+  format: ExportFormat;
   created_at: string;
   updated_at: string;
 }
@@ -54,6 +57,7 @@ export async function createJob(
     source?: string;
     configuration: Record<string, unknown>;
     configHash: string;
+    format?: ExportFormat;
   },
 ): Promise<string> {
   const id = crypto.randomUUID();
@@ -61,8 +65,8 @@ export async function createJob(
   await db
     .prepare(
       `INSERT INTO export_jobs
-        (id, template_id, source, configuration, config_hash, status, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, 'queued', ?, ?)`,
+        (id, template_id, source, configuration, config_hash, status, format, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, 'queued', ?, ?, ?)`,
     )
     .bind(
       id,
@@ -70,6 +74,7 @@ export async function createJob(
       input.source ?? null,
       JSON.stringify(input.configuration),
       input.configHash,
+      input.format ?? "stl",
       now,
       now,
     )

@@ -484,6 +484,21 @@ button {
   background: #f4f4f5;
 }
 
+.admin-export-format {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.5rem 0.6rem;
+  font-size: 0.9rem;
+  background: white;
+  color: var(--text);
+}
+
+.admin-render-toolbar {
+  display: flex;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
 .export-button {
   text-decoration: none;
   display: inline-block;
@@ -784,6 +799,69 @@ button {
 .my-designs-updated {
   font-size: 0.8rem;
   color: var(--muted);
+}
+
+/* Image carousel */
+
+.image-carousel {
+  margin-top: 1.5rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--border);
+}
+
+.image-carousel h3 {
+  margin: 0 0 0.75rem;
+  font-size: 0.9rem;
+}
+
+.image-carousel-viewer {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.image-carousel-viewer img {
+  flex: 1;
+  max-width: 100%;
+  max-height: 220px;
+  object-fit: contain;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+}
+
+.image-carousel-nav {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  width: 2.25rem;
+  height: 2.25rem;
+  flex-shrink: 0;
+  font-size: 1rem;
+}
+
+.image-carousel-nav:hover:not(:disabled) {
+  background: #f4f4f5;
+}
+
+.image-carousel-nav:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.image-carousel-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 0.5rem;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.image-carousel-upload {
+  display: inline-block;
+  margin-top: 0.75rem;
+  cursor: pointer;
 }
 
 /* Responsive */

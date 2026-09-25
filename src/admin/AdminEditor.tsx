@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { Mesh } from "three";
+import { STLExporter } from "three/examples/jsm/exporters/STLExporter.js";
 import type { Configuration, Template } from "../types/template";
 import { parseCustomizer } from "../customizer/parseCustomizer";
 import { estimateComplexity, complexityMessage } from "../customizer/estimateComplexity";
@@ -9,6 +11,7 @@ import { useRenderMesh } from "../state/useRenderMesh";
 import { useServerPreview } from "../state/useServerPreview";
 import { Viewer } from "../components/Customize/Viewer";
 import { ParameterPanel } from "../components/Customize/ParameterPanel";
+import { ImageCarousel } from "./ImageCarousel";
 import {
   createTemplate,
   updateTemplate,
@@ -16,7 +19,12 @@ import {
   uploadThumbnail,
   fetchAdminTemplateDetail,
 } from "../api/adminClient";
-import { submitAdminRender, pollUntilSettled, visibleConfiguration } from "../api/exportClient";
+import {
+  submitAdminRender,
+  pollUntilSettled,
+  visibleConfiguration,
+  type ExportFormat,
+} from "../api/exportClient";
 
 const PREVIEW_COLOR = "#6366f1";
 const PLACEHOLDER_SOURCE = `// A new template — top-level variables become customizable
@@ -27,6 +35,25 @@ width = 40; // [10:100]
 
 cube([width, width, width]);
 `;
+
+function slugify(name: string): string {
+  const slug = name.trim().replace(/\s+/g, "-").toLowerCase();
+  return slug || "template";
+}
+
+function triggerDownload(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+type ExportState =
+  | { phase: "idle" }
+  | { phase: "working"; message: string }
+  | { phase: "error"; message: string };
 
 export function AdminEditor() {
   const { id } = useParams<{ id: string }>();
@@ -42,8 +69,10 @@ export function AdminEditor() {
 
   const [loading, setLoading] = useState(!isNew);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [publishStage, setPublishStage] = useState<string | null>(null);
+  const [saveStage, setSaveStage] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [exportFormat, setExportFormat] = useState<ExportFormat>("stl");
+  const [exportState, setExportState] = useState<ExportState>({ phase: "idle" });
 
   useEffect(() => {
     if (isNew) return;
@@ -103,30 +132,39 @@ export function AdminEditor() {
 
   const {
     geometry: clientGeometry,
-    loading: rendering,
-    error: renderError,
+    loading: clientLoading,
+    error: clientError,
     skipped,
     renderInBrowser,
   } = useRenderMesh(draftTemplate, config, complexity.hasExpensiveLoop);
   const serverPreview = useServerPreview();
   const canvasElRef = useRef<HTMLCanvasElement | null>(null);
 
-  // While skipped, the client pipeline never ran (see useRenderMesh) — the
-  // on-demand server preview is the only source of "does this look right"
-  // feedback, same as it is for the public Customize view.
-  const geometry = skipped ? serverPreview.geometry : clientGeometry;
-  const previewLoading = skipped ? serverPreview.working : rendering;
-  const previewError = skipped ? serverPreview.error : renderError;
+  // Render (browser) and Render (server) are both always available — see
+  // CONTEXT.md: Render on server, ADR-0008. Whichever the Admin last
+  // triggered is what the Viewer shows; a Configuration change falls back
+  // to the browser engine (whose auto-render, unless skipped, already
+  // reflects the new values — a stale server render from before the
+  // change would be misleading to keep showing).
+  const [previewSource, setPreviewSource] = useState<"client" | "server">("client");
+  useEffect(() => {
+    setPreviewSource("client");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [config]);
 
-  const canPublish =
-    !loading &&
-    !previewLoading &&
-    !previewError &&
-    geometry !== null &&
-    name.trim() !== "" &&
-    publishStage === null;
+  const geometry = previewSource === "server" ? serverPreview.geometry : clientGeometry;
+  const previewLoading = previewSource === "server" ? serverPreview.working : clientLoading;
+  const previewError = previewSource === "server" ? serverPreview.error : clientError;
+
+  const canSave = name.trim() !== "" && saveStage === null;
+
+  function handleRenderInBrowser() {
+    setPreviewSource("client");
+    renderInBrowser();
+  }
 
   function handleRenderOnServer() {
+    setPreviewSource("server");
     serverPreview.run(() => submitAdminRender(source, visibleConfiguration(appliedParams, config)));
   }
 
@@ -149,38 +187,13 @@ export function AdminEditor() {
     );
   }
 
-  async function handlePublish() {
+  // Save persists metadata only — no render check first (see CONTEXT.md:
+  // Save, ADR-0009). Use Render (browser)/Render (server) beforehand to
+  // check the design actually renders; Save itself doesn't gate on it.
+  async function handleSave() {
     setSaveError(null);
-    setPublishStage("Validating on the server…");
+    setSaveStage("Saving…");
     try {
-      // Confirms the exact server-side Render path (native OpenSCAD in a
-      // Container, not the WASM build) also succeeds for this template
-      // before it goes live — catches the class of bug that passed the
-      // client-side check here but would break every customer's export
-      // downstream (see ADR: one render pipeline for all server-side callers).
-      const defaultConfig = defaultConfiguration(draftTemplate);
-      const { jobId } = await submitAdminRender(
-        source,
-        visibleConfiguration(appliedParams, defaultConfig),
-      );
-      const result = await pollUntilSettled(jobId, (status) => {
-        if (status.status === "queued") {
-          setPublishStage(
-            status.aheadInQueue > 0
-              ? `In queue — ${status.aheadInQueue} ahead…`
-              : "In queue…",
-          );
-        } else if (status.status === "rendering") {
-          setPublishStage("Rendering on the server…");
-        }
-      });
-      if (result.status !== "done") {
-        throw new Error(
-          result.error ?? "Server-side render failed — won't publish until it succeeds.",
-        );
-      }
-
-      setPublishStage("Saving…");
       const input = {
         name: name.trim(),
         description: description.trim() || undefined,
@@ -199,9 +212,9 @@ export function AdminEditor() {
 
       navigate("/admin");
     } catch (err) {
-      setSaveError(err instanceof Error ? err.message : "Couldn't publish.");
+      setSaveError(err instanceof Error ? err.message : "Couldn't save.");
     } finally {
-      setPublishStage(null);
+      setSaveStage(null);
     }
   }
 
@@ -213,6 +226,57 @@ export function AdminEditor() {
       navigate("/admin");
     } catch (err) {
       alert(err instanceof Error ? err.message : "Couldn't delete this template.");
+    }
+  }
+
+  // STL from whatever the browser already has rendered, when there is one
+  // — instant, no Container round-trip. 3MF can only ever come from the
+  // server (openscad-wasm has no lib3mf — see ADR-0009), and STL falls
+  // back to the server too when the browser has nothing to export yet.
+  async function handleExport() {
+    setExportState({ phase: "working", message: "Preparing…" });
+    try {
+      if (exportFormat === "stl" && clientGeometry) {
+        const exporter = new STLExporter();
+        const data = exporter.parse(new Mesh(clientGeometry), { binary: true });
+        triggerDownload(new Blob([data], { type: "model/stl" }), `${slugify(name)}.stl`);
+        setExportState({ phase: "idle" });
+        return;
+      }
+
+      const { jobId } = await submitAdminRender(
+        source,
+        visibleConfiguration(appliedParams, config),
+        exportFormat,
+      );
+      const final = await pollUntilSettled(jobId, (status) => {
+        if (status.status === "queued") {
+          setExportState({
+            phase: "working",
+            message:
+              status.aheadInQueue > 0
+                ? `In queue — ${status.aheadInQueue} ahead…`
+                : "In queue…",
+          });
+        } else if (status.status === "rendering") {
+          setExportState({ phase: "working", message: "Rendering on the server…" });
+        }
+      });
+
+      if (final.status === "done" && final.downloadUrl) {
+        const res = await fetch(final.downloadUrl);
+        if (!res.ok) throw new Error("Couldn't fetch the exported file.");
+        const blob = await res.blob();
+        triggerDownload(blob, `${slugify(name)}.${exportFormat}`);
+        setExportState({ phase: "idle" });
+      } else {
+        setExportState({ phase: "error", message: final.error ?? "Couldn't export this file." });
+      }
+    } catch (err) {
+      setExportState({
+        phase: "error",
+        message: err instanceof Error ? err.message : "Couldn't export this file.",
+      });
     }
   }
 
@@ -232,17 +296,31 @@ export function AdminEditor() {
               Delete
             </button>
           )}
-          <button className="export-button" disabled={!canPublish} onClick={handlePublish}>
-            {publishStage ?? "Publish"}
+          <select
+            className="admin-export-format"
+            value={exportFormat}
+            onChange={(e) => setExportFormat(e.target.value as ExportFormat)}
+            aria-label="Export format"
+          >
+            <option value="stl">.STL</option>
+            <option value="3mf">.3MF</option>
+          </select>
+          <button
+            className="admin-link"
+            onClick={handleExport}
+            disabled={exportState.phase === "working"}
+          >
+            {exportState.phase === "working" ? exportState.message : "Export"}
+          </button>
+          <button className="export-button" disabled={!canSave} onClick={handleSave}>
+            {saveStage ?? "Save"}
           </button>
         </div>
       </header>
 
       {saveError && <p className="gallery-error">{saveError}</p>}
-      {!previewLoading && previewError && (
-        <p className="admin-render-error">
-          Won't publish until this renders successfully: {previewError}
-        </p>
+      {exportState.phase === "error" && (
+        <p className="admin-render-error">{exportState.message}</p>
       )}
 
       <div className="admin-editor-body">
@@ -309,41 +387,38 @@ export function AdminEditor() {
               ))}
             </div>
           )}
+
+          {id ? (
+            <ImageCarousel templateId={id} />
+          ) : (
+            <p className="parameter-panel-empty">Save this template first to add images.</p>
+          )}
         </div>
 
         <div className="admin-editor-preview">
+          <div className="admin-render-toolbar">
+            <button className="admin-link" onClick={handleRenderInBrowser}>
+              Render (browser)
+            </button>
+            <button className="admin-link" onClick={handleRenderOnServer}>
+              Render (server)
+            </button>
+          </div>
           <Viewer
             geometry={geometry}
             loading={previewLoading}
             error={previewError}
             color={PREVIEW_COLOR}
             complexityMessage={complexityHint}
-            loadingMessage={skipped ? serverPreview.message : undefined}
+            loadingMessage={previewSource === "server" ? serverPreview.message : undefined}
             onCanvasReady={(canvas) => (canvasElRef.current = canvas)}
             emptyState={
               skipped && (
-                <div className="complex-design-cta">
-                  <p>{complexityHint ?? "This design is complex and may be slow to preview."}</p>
-                  <button className="export-button" onClick={handleRenderOnServer}>
-                    Render on server
-                  </button>
-                  <button className="admin-link" onClick={renderInBrowser}>
-                    Render in browser anyway
-                  </button>
-                </div>
+                <p>{complexityHint ?? "This design is complex and may be slow to preview."}</p>
               )
             }
           />
           {complexityHint && !skipped && <p className="complexity-hint">{complexityHint}</p>}
-          {skipped && geometry && (
-            <p className="complexity-hint">
-              Server preview shown — click{" "}
-              <button className="link-button" onClick={handleRenderOnServer}>
-                Render on server
-              </button>{" "}
-              again after changing values to refresh it.
-            </p>
-          )}
           <div className="admin-editor-params">
             <ParameterPanel parameters={appliedParams} config={config} onChange={handleConfigChange} />
           </div>

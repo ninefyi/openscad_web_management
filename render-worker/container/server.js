@@ -1,7 +1,8 @@
 // Minimal HTTP wrapper around the native `openscad` CLI, run inside the
 // Cloudflare Container. Deliberately dependency-free (Node built-ins only)
-// since this only needs to do one thing: take .scad source + -D overrides,
-// shell out to openscad, and return the resulting STL bytes or an error.
+// since this only needs to do one thing: take .scad source + -D overrides
+// (+ an optional export format, stl or 3mf — see CONTEXT.md: Export Job),
+// shell out to openscad, and return the resulting file bytes or an error.
 import http from "node:http";
 import { spawn } from "node:child_process";
 import { writeFile, readFile, mkdtemp, rm } from "node:fs/promises";
@@ -53,16 +54,20 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  const { source, defines } = payload;
+  const { source, defines, format } = payload;
   if (typeof source !== "string") {
     res.writeHead(400, { "content-type": "application/json" });
     res.end(JSON.stringify({ error: "source is required" }));
     return;
   }
+  const ext = format === "3mf" ? "3mf" : "stl";
+  const contentType = ext === "3mf" ? "model/3mf" : "model/stl";
 
   const dir = await mkdtemp(join(tmpdir(), "scad-"));
   const inputPath = join(dir, "input.scad");
-  const outputPath = join(dir, "output.stl");
+  // OpenSCAD infers the export format from this extension — no separate
+  // --export-format flag needed.
+  const outputPath = join(dir, `output.${ext}`);
 
   try {
     await writeFile(inputPath, source, "utf8");
@@ -86,9 +91,9 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
-    const stl = await readFile(outputPath);
-    res.writeHead(200, { "content-type": "model/stl" });
-    res.end(stl);
+    const bytes = await readFile(outputPath);
+    res.writeHead(200, { "content-type": contentType });
+    res.end(bytes);
   } catch (err) {
     res.writeHead(500, { "content-type": "application/json" });
     res.end(JSON.stringify({ error: err instanceof Error ? err.message : String(err) }));

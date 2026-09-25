@@ -22,6 +22,7 @@ interface ExportJobRow {
   template_id: string | null;
   source: string | null;
   configuration: string;
+  format: string;
 }
 
 interface TemplateRow {
@@ -84,6 +85,7 @@ async function processJob(jobId: string, env: Env): Promise<void> {
 
     const configuration = JSON.parse(job.configuration) as Record<string, unknown>;
     const defines = buildDefines(configuration);
+    const format = job.format === "3mf" ? "3mf" : "stl";
 
     // Stateless render request — load-balance across whichever container
     // instances are available rather than pinning to one by name.
@@ -91,7 +93,7 @@ async function processJob(jobId: string, env: Env): Promise<void> {
     const response = await container.fetch("http://container/render", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ source, defines }),
+      body: JSON.stringify({ source, defines, format }),
     });
 
     if (!response.ok) {
@@ -99,9 +101,10 @@ async function processJob(jobId: string, env: Env): Promise<void> {
       throw new Error(body.error ?? `Container returned HTTP ${response.status}`);
     }
 
-    const stl = await response.arrayBuffer();
-    const r2Key = `exports/${jobId}.stl`;
-    await env.THUMBNAILS.put(r2Key, stl, { httpMetadata: { contentType: "model/stl" } });
+    const bytes = await response.arrayBuffer();
+    const r2Key = `exports/${jobId}.${format}`;
+    const contentType = format === "3mf" ? "model/3mf" : "model/stl";
+    await env.THUMBNAILS.put(r2Key, bytes, { httpMetadata: { contentType } });
 
     await updateJob(env.DB, jobId, { status: "done", r2_key: r2Key });
   } catch (err) {

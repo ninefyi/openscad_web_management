@@ -78,3 +78,38 @@ export async function uploadThumbnail(id: string, png: Blob): Promise<void> {
   });
   if (!res.ok) throw new Error("Couldn't save the thumbnail.");
 }
+
+export interface TemplateImage {
+  id: string;
+  url: string;
+  position: number;
+}
+
+export async function listTemplateImages(templateId: string): Promise<TemplateImage[]> {
+  const res = await fetch(`/api/admin/templates/${templateId}/images`);
+  if (!res.ok) throw new Error("Couldn't load images.");
+  return res.json();
+}
+
+export async function uploadTemplateImage(
+  templateId: string,
+  file: Blob,
+): Promise<TemplateImage> {
+  const res = await fetch(`/api/admin/templates/${templateId}/images`, {
+    method: "POST",
+    headers: { "content-type": file.type || "application/octet-stream" },
+    body: file,
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({ error: "Couldn't upload this image." }));
+    throw new Error(body.error ?? "Couldn't upload this image.");
+  }
+  return res.json();
+}
+
+export async function deleteTemplateImage(templateId: string, imageId: string): Promise<void> {
+  const res = await fetch(`/api/admin/templates/${templateId}/images/${imageId}`, {
+    method: "DELETE",
+  });
+  if (!res.ok) throw new Error("Couldn't delete this image.");
+}

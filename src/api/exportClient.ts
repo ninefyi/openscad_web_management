@@ -63,14 +63,17 @@ export async function submitExport(
   return parseJsonOrThrow<{ jobId: string }>(res);
 }
 
+export type ExportFormat = "stl" | "3mf";
+
 export async function submitAdminRender(
   source: string,
   configuration: Record<string, Configuration[string]>,
+  format?: ExportFormat,
 ): Promise<{ jobId: string }> {
   const res = await fetch("/api/admin/render", {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ source, configuration }),
+    body: JSON.stringify({ source, configuration, format }),
   });
   return parseJsonOrThrow<{ jobId: string }>(res);
 }
