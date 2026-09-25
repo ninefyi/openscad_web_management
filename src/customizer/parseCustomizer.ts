@@ -5,6 +5,19 @@ const ASSIGNMENT_RE =
   /^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.+?);\s*(\/\/\s*(.*))?\s*$/;
 const RANGE_RE = /^\[\s*(-?[\d.]+)?\s*:\s*(-?[\d.]+)?\s*(?::\s*(-?[\d.]+)?)?\s*\]$/;
 const OPTIONS_RE = /^\[(.+)\]$/;
+const COMMENT_ONLY_RE = /^\s*\/\/\s*(.*\S)\s*$/;
+// A comment that's *entirely* a comma-separated list of quoted strings —
+// e.g. `"circle", "square", "heart"` — with nothing else in it. Not every
+// .scad author writes OpenSCAD's own `// [a,b,c]` Customizer syntax; some
+// document valid values this way instead, one line below the assignment
+// rather than as a same-line annotation. The strict full-match (vs. just
+// finding quotes somewhere in a longer sentence) keeps this from
+// misfiring on an ordinary prose comment that happens to quote a word.
+const QUOTED_LIST_RE = /^"(?:[^"\\]|\\.)*"(?:\s*,\s*"(?:[^"\\]|\\.)*")*$/;
+
+function extractQuotedList(text: string): string[] {
+  return [...text.matchAll(/"((?:[^"\\]|\\.)*)"/g)].map((m) => m[1]);
+}
 
 function toLabel(name: string): string {
   const spaced = name
@@ -37,6 +50,13 @@ function parseLiteral(raw: string): ParameterValue | undefined {
  * under it), `// [min:max]` / `// [min:step:max]` range annotations, and
  * `// [a,b,c]` / `// [a:Label,b:Label]` dropdown option lists. Only top-level
  * (brace depth 0) assignments are treated as Parameters.
+ *
+ * Also recognizes one non-standard-but-common pattern: a string assignment
+ * with no same-line annotation, immediately followed by a comment that's
+ * nothing but a quoted, comma-separated list (`"a", "b", "c"`) — some
+ * authors document valid values that way instead of OpenSCAD's own bracket
+ * syntax. That line is consumed as this parameter's dropdown options, not
+ * as the next parameter's description.
  */
 export function parseCustomizer(source: string): Parameter[] {
   const lines = source.split("\n");
@@ -47,7 +67,8 @@ export function parseCustomizer(source: string): Parameter[] {
   let pendingDescription: string | undefined;
   let braceDepth = 0;
 
-  for (const line of lines) {
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
     const groupMatch = line.match(GROUP_HEADER_RE);
     if (groupMatch) {
       const name = groupMatch[1].trim();
@@ -60,13 +81,26 @@ export function parseCustomizer(source: string): Parameter[] {
     if (braceDepth === 0) {
       const assignMatch = line.match(ASSIGNMENT_RE);
       if (assignMatch) {
-        const [, name, rawValue, , annotation] = assignMatch;
+        const [, name, rawValue, , rawAnnotation] = assignMatch;
         const literal = parseLiteral(rawValue);
         if (literal !== undefined) {
+          let annotation = rawAnnotation?.trim();
+          let quotedOptions: string[] | undefined;
+
+          if (typeof literal === "string" && !annotation) {
+            const nextLine = lines[i + 1];
+            const nextComment = nextLine?.match(COMMENT_ONLY_RE)?.[1];
+            if (nextComment && QUOTED_LIST_RE.test(nextComment)) {
+              quotedOptions = extractQuotedList(nextComment);
+              i++; // consume it — it's this parameter's options, not a description for whatever follows
+            }
+          }
+
           const parameter = buildParameter({
             name,
             literal,
-            annotation: annotation?.trim(),
+            annotation,
+            quotedOptions,
             group: currentGroup,
             hidden: currentHidden,
             description: pendingDescription,
@@ -79,7 +113,7 @@ export function parseCustomizer(source: string): Parameter[] {
       }
     }
 
-    const commentOnlyMatch = line.match(/^\s*\/\/\s*(.*\S)\s*$/);
+    const commentOnlyMatch = line.match(COMMENT_ONLY_RE);
     if (commentOnlyMatch && braceDepth === 0) {
       pendingDescription = commentOnlyMatch[1];
     } else {
@@ -106,11 +140,12 @@ function buildParameter(args: {
   name: string;
   literal: ParameterValue;
   annotation: string | undefined;
+  quotedOptions: string[] | undefined;
   group: string;
   hidden: boolean;
   description: string | undefined;
 }): Parameter | null {
-  const { name, literal, annotation, group, hidden, description } = args;
+  const { name, literal, annotation, quotedOptions, group, hidden, description } = args;
   const label = description ?? toLabel(name);
   const base = { name, label, group, hidden };
 
@@ -135,6 +170,15 @@ function buildParameter(args: {
         control: "dropdown",
         annotated: true,
         options,
+        defaultValue: literal,
+      };
+    }
+    if (quotedOptions) {
+      return {
+        ...base,
+        control: "dropdown",
+        annotated: true,
+        options: quotedOptions.map((value) => ({ value, label: value })),
         defaultValue: literal,
       };
     }

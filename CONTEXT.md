@@ -25,7 +25,7 @@ The optional display-override data for a Built-in Template — overriding Contro
 _Avoid_: Metadata, Config
 
 **Parameter**:
-A named, user-adjustable value declared in a Template, exposed as a Control in the Customize view. Either Annotated (defined via an OpenSCAD Customizer comment, e.g. a range or dropdown) or Inferred (a bare top-level variable with no Customizer comment, given a best-guess Control).
+A named, user-adjustable value declared in a Template, exposed as a Control in the Customize view. Either Annotated (defined via an OpenSCAD Customizer comment, e.g. a range or dropdown) or Inferred (a bare top-level variable with no Customizer comment, given a best-guess Control). A dropdown Control is Annotated either way, even though its options can come from two different comment forms: OpenSCAD's own same-line `// [a,b,c]` bracket syntax, or a string Parameter's very next line being nothing but a quoted, comma-separated list (`// "a", "b", "c"`) — a pattern real `.scad` authors use for the same purpose without knowing the stricter syntax. `parseCustomizer` recognizes both; a looser prose comment (`// "a" or "b"`) recognizes neither and falls back to a plain text Control.
 _Avoid_: Variable (the raw `.scad` declaration; Parameter is its exposed, user-facing form), Field, Setting
 
 **Hidden Parameter**:
