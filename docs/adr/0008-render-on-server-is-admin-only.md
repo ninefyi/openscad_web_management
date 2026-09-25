@@ -1,0 +1,7 @@
+# Restrict Render on server to the Admin Panel; customers get a single client-side Render button
+
+ADR-0007 gave a customer flagged with an expensive Template two choices: force the client-side attempt, or Render on server (then anonymous, via `POST /api/preview`). That choice is now Admin-only — the customer-facing Customize view no longer offers Render on server at all, only an explicit "Render" button that forces the same client-side attempt `renderInBrowser()` already provided. `POST /api/preview` and the client code that called it were removed rather than left unused, since nothing else called them once this shipped.
+
+The Admin Panel keeps both options unchanged, via its own already-Access-gated `POST /api/admin/render` — this was never anonymous to begin with, so restricting server-side rendering to "only Admin" required no new gating there, just removing the parallel anonymous path the customer view had.
+
+This narrows, rather than reverses, ADR-0007's reasoning: the "free client compute vs. costed server compute" line still holds, just drawn so only the Admin — a single, trusted, low-volume actor validating a Template before Publish — can spend server compute on a preview. A customer hitting a genuinely expensive Template now has one option (the client attempt, still protected by the 60s timeout), not a degraded one; the trade-off is that a customer with no realistic way to render that Template client-side has no fallback left, which was accepted deliberately rather than overlooked.

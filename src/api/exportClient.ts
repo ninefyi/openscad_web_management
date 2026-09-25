@@ -63,23 +63,6 @@ export async function submitExport(
   return parseJsonOrThrow<{ jobId: string }>(res);
 }
 
-/** Render on server (see CONTEXT.md) — the complex-design preview
- * fallback, not an Export. Deliberately a separate endpoint from
- * submitExport: it shares the same Export Job pipeline server-side, but
- * stays anonymous-capable where /api/export now requires a signed-in
- * Account. */
-export async function submitPreview(
-  templateId: string,
-  configuration: Record<string, Configuration[string]>,
-): Promise<{ jobId: string }> {
-  const res = await fetch("/api/preview", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ templateId, configuration, sessionToken: getSessionToken() }),
-  });
-  return parseJsonOrThrow<{ jobId: string }>(res);
-}
-
 export async function submitAdminRender(
   source: string,
   configuration: Record<string, Configuration[string]>,
