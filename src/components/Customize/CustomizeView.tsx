@@ -38,18 +38,14 @@ export function CustomizeView({ template, onBack, initialConfig }: CustomizeView
   const complexity = useMemo(() => estimateComplexity(template.source), [template.source]);
   const complexityHint = useMemo(() => complexityMessage(complexity), [complexity]);
 
-  // Render on server isn't offered here — only the Admin Panel gets that
-  // choice (see CONTEXT.md: Render on server). A customer flagged skipped
-  // gets exactly one option: an explicit, opt-in client-side Render,
-  // guarded by useRenderMesh's own 60s timeout. `true` here opts into the
-  // default-preview cache race (ADR-0010) — the Admin Panel's own preview
-  // never does (see ADR-0009: an Admin always wants a current result).
-  const { geometry, loading, error, skipped, renderInBrowser } = useRenderMesh(
-    template,
-    config,
-    complexity.hasExpensiveLoop,
-    true,
-  );
+  // Always auto-renders, even for a Template flagged complex — see
+  // ADR-0012 for why the earlier skip-then-click gate (ADR-0007) is gone
+  // for customers specifically; useRenderMesh's own 60s timeout is still
+  // the safety net if a render genuinely can't finish. `true` here opts
+  // into the default-preview cache race (ADR-0010) — the Admin Panel's
+  // own preview never does (see ADR-0009: an Admin always wants a current
+  // result), and keeps its own explicit skip-then-click gate as-is.
+  const { geometry, loading, error } = useRenderMesh(template, config, false, true);
 
   function handleChange(name: string, value: Parameter["defaultValue"]) {
     setConfig((prev) => ({ ...prev, [name]: value }));
@@ -87,20 +83,10 @@ export function CustomizeView({ template, onBack, initialConfig }: CustomizeView
           error={error}
           color={color}
           complexityMessage={complexityHint}
-          emptyState={
-            skipped && (
-              <div className="complex-design-cta">
-                <p>{complexityHint ?? "This design is complex and may be slow to preview."}</p>
-                <button className="export-button" onClick={renderInBrowser}>
-                  Render
-                </button>
-              </div>
-            )
-          }
         />
         <aside className="customize-sidebar">
           {template.description && <p className="template-description">{template.description}</p>}
-          {complexityHint && !skipped && <p className="complexity-hint">{complexityHint}</p>}
+          {complexityHint && <p className="complexity-hint">{complexityHint}</p>}
           <ImageGallery templateId={template.id} />
           <ColorPicker color={color} onChange={handleColorChange} />
           <ParameterPanel
