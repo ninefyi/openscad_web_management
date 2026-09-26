@@ -14,6 +14,13 @@ const COMMENT_ONLY_RE = /^\s*\/\/\s*(.*\S)\s*$/;
 // finding quotes somewhere in a longer sentence) keeps this from
 // misfiring on an ordinary prose comment that happens to quote a word.
 const QUOTED_LIST_RE = /^"(?:[^"\\]|\\.)*"(?:\s*,\s*"(?:[^"\\]|\\.)*")*$/;
+// One dropdown option per comment line, immediately below the assignment —
+// e.g. `// "single" = one letter` followed by `// "all"    = A-Z` — for
+// authors who want a distinct human-readable label per option rather than
+// (or in addition to) the raw value the comma-list form re-uses as its own
+// label. Requires the quote to open the comment so an ordinary prose
+// comment that happens to quote a word followed by "=" doesn't misfire.
+const QUOTED_LABELED_OPTION_RE = /^\s*\/\/\s*"((?:[^"\\]|\\.)*)"\s*=\s*(.+?)\s*$/;
 
 function extractQuotedList(text: string): string[] {
   return [...text.matchAll(/"((?:[^"\\]|\\.)*)"/g)].map((m) => m[1]);
@@ -51,12 +58,15 @@ function parseLiteral(raw: string): ParameterValue | undefined {
  * `// [a,b,c]` / `// [a:Label,b:Label]` dropdown option lists. Only top-level
  * (brace depth 0) assignments are treated as Parameters.
  *
- * Also recognizes one non-standard-but-common pattern: a string assignment
- * with no same-line annotation, immediately followed by a comment that's
- * nothing but a quoted, comma-separated list (`"a", "b", "c"`) — some
- * authors document valid values that way instead of OpenSCAD's own bracket
- * syntax. That line is consumed as this parameter's dropdown options, not
- * as the next parameter's description.
+ * Also recognizes two non-standard-but-common patterns for a string
+ * assignment with no same-line annotation, checked in this order: one or
+ * more consecutive comment lines each holding a single labeled option
+ * (`// "single" = one letter`, `// "all" = A-Z`) — giving each option its
+ * own label — or, if none of those match, a single comment line that's
+ * nothing but a quoted, comma-separated list (`"a", "b", "c"`), whose
+ * label is just the value itself. Either way, those lines are consumed as
+ * this parameter's dropdown options, not as the next parameter's
+ * description.
  */
 export function parseCustomizer(source: string): Parameter[] {
   const lines = source.split("\n");
@@ -85,14 +95,27 @@ export function parseCustomizer(source: string): Parameter[] {
         const literal = parseLiteral(rawValue);
         if (literal !== undefined) {
           let annotation = rawAnnotation?.trim();
-          let quotedOptions: string[] | undefined;
+          let quotedOptions: { value: string; label: string }[] | undefined;
 
           if (typeof literal === "string" && !annotation) {
-            const nextLine = lines[i + 1];
-            const nextComment = nextLine?.match(COMMENT_ONLY_RE)?.[1];
-            if (nextComment && QUOTED_LIST_RE.test(nextComment)) {
-              quotedOptions = extractQuotedList(nextComment);
-              i++; // consume it — it's this parameter's options, not a description for whatever follows
+            const labeled: { value: string; label: string }[] = [];
+            let j = i + 1;
+            while (true) {
+              const m = lines[j]?.match(QUOTED_LABELED_OPTION_RE);
+              if (!m) break;
+              labeled.push({ value: m[1], label: m[2] });
+              j++;
+            }
+            if (labeled.length > 0) {
+              quotedOptions = labeled;
+              i = j - 1; // consume every matched line
+            } else {
+              const nextLine = lines[i + 1];
+              const nextComment = nextLine?.match(COMMENT_ONLY_RE)?.[1];
+              if (nextComment && QUOTED_LIST_RE.test(nextComment)) {
+                quotedOptions = extractQuotedList(nextComment).map((value) => ({ value, label: value }));
+                i++; // consume it — it's this parameter's options, not a description for whatever follows
+              }
             }
           }
 
@@ -140,7 +163,7 @@ function buildParameter(args: {
   name: string;
   literal: ParameterValue;
   annotation: string | undefined;
-  quotedOptions: string[] | undefined;
+  quotedOptions: { value: string; label: string }[] | undefined;
   group: string;
   hidden: boolean;
   description: string | undefined;
@@ -178,7 +201,7 @@ function buildParameter(args: {
         ...base,
         control: "dropdown",
         annotated: true,
-        options: quotedOptions.map((value) => ({ value, label: value })),
+        options: quotedOptions,
         defaultValue: literal,
       };
     }
