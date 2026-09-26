@@ -83,6 +83,13 @@ const server = http.createServer(async (req, res) => {
       "-o",
       outputPath,
     ];
+    if (ext === "stl") {
+      // ASCII is OpenSCAD's own default STL encoding — several times
+      // larger than binary for the same geometry, and much slower for a
+      // browser's STLLoader to parse. Binary is a fixed-size read;
+      // STLLoader already auto-detects and handles both.
+      args.push("--export-format=binstl");
+    }
     const { code, output } = await runOpenscad(args);
 
     if (code !== 0) {

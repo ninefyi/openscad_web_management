@@ -82,6 +82,12 @@ self.onmessage = async (event: MessageEvent<RenderRequest>) => {
       ...defines.flatMap((d) => ["-D", d]),
       "-o",
       "/output.stl",
+      // OpenSCAD's own default is ASCII STL — text-encoded, several times
+      // larger than binary for the same geometry and much slower for
+      // STLLoader to parse synchronously on the main thread. Binary is a
+      // straightforward fixed-size read; STLLoader already auto-detects
+      // and handles both, so this needs no change on the parsing side.
+      "--export-format=binstl",
     ];
     instance.callMain(args);
 
