@@ -16,6 +16,18 @@ export interface TemplateDetail extends TemplateSummary {
   manifest: { labels: Record<string, string>; order: string[]; hide: string[] };
 }
 
+export interface TemplateImage {
+  id: string;
+  url: string;
+  position: number;
+}
+
+export async function listTemplateImages(id: string): Promise<TemplateImage[]> {
+  const res = await fetch(`/api/templates/${id}/images`);
+  if (!res.ok) throw new Error("Couldn't load this template's images.");
+  return res.json();
+}
+
 export async function listBuiltinTemplates(): Promise<TemplateSummary[]> {
   const res = await fetch("/api/templates");
   if (!res.ok) throw new Error("Couldn't load the template gallery.");

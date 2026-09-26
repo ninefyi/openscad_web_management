@@ -7,6 +7,7 @@ import { Viewer } from "./Viewer";
 import { ParameterPanel } from "./ParameterPanel";
 import { ExportButton } from "./ExportButton";
 import { ColorPicker } from "./ColorPicker";
+import { ImageGallery } from "./ImageGallery";
 
 const DEFAULT_COLOR = "#6366f1";
 const COLOR_STORAGE_KEY = "openscad-web-management.viewerColor";
@@ -97,6 +98,7 @@ export function CustomizeView({ template, onBack, initialConfig }: CustomizeView
         <aside className="customize-sidebar">
           {template.description && <p className="template-description">{template.description}</p>}
           {complexityHint && !skipped && <p className="complexity-hint">{complexityHint}</p>}
+          <ImageGallery templateId={template.id} />
           <ColorPicker color={color} onChange={handleColorChange} />
           <ParameterPanel
             parameters={template.parameters}

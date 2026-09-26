@@ -25,7 +25,7 @@ The optional display-override data for a Built-in Template — overriding Contro
 _Avoid_: Metadata, Config
 
 **Template Image**:
-Up to 3 reference images (e.g. photos of a printed result) an Admin can attach to a Built-in Template, beyond its single auto-captured thumbnail. Purely supplementary — reviewed in the Admin Panel as a one-at-a-time carousel with prev/next navigation; not currently shown anywhere in the customer-facing Gallery or Customize view. Stored in R2 (the same bucket as thumbnails and Export Job results) with a D1 row per image recording order.
+Up to 3 reference images (e.g. photos of a printed result) an Admin can attach to a Built-in Template, beyond its single auto-captured thumbnail. Purely supplementary — reviewed in the Admin Panel as a one-at-a-time carousel with prev/next navigation, and shown read-only the same way in the customer-facing Customize view (not the Gallery grid — its card is too small for a carousel); an unlisted Template's images are unreachable there, same as the Template itself. Stored in R2 (the same bucket as thumbnails and Export Job results) with a D1 row per image recording order.
 _Avoid_: Photo, Gallery image (Gallery is a different, existing term — the Template grid screen)
 
 **Parameter**:
