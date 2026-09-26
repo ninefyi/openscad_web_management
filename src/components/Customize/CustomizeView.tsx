@@ -41,11 +41,14 @@ export function CustomizeView({ template, onBack, initialConfig }: CustomizeView
   // Render on server isn't offered here — only the Admin Panel gets that
   // choice (see CONTEXT.md: Render on server). A customer flagged skipped
   // gets exactly one option: an explicit, opt-in client-side Render,
-  // guarded by useRenderMesh's own 60s timeout.
+  // guarded by useRenderMesh's own 60s timeout. `true` here opts into the
+  // default-preview cache race (ADR-0010) — the Admin Panel's own preview
+  // never does (see ADR-0009: an Admin always wants a current result).
   const { geometry, loading, error, skipped, renderInBrowser } = useRenderMesh(
     template,
     config,
     complexity.hasExpensiveLoop,
+    true,
   );
 
   function handleChange(name: string, value: Parameter["defaultValue"]) {

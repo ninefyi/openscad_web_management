@@ -1,5 +1,6 @@
 import type { Env } from "../../../lib/env";
 import { toDetailDTO, type TemplateRow } from "../../../lib/db";
+import { warmDefaultPreview } from "../../../lib/jobs";
 
 interface UpdatePayload {
   name: string;
@@ -64,6 +65,10 @@ export const onRequestPut: PagesFunction<Env> = async ({ request, env, params })
     .bind(id)
     .first<TemplateRow>();
 
+  if (row!.is_listed === 1) {
+    await warmDefaultPreview(env.RENDER_QUEUE, id, body.source);
+  }
+
   return Response.json(toDetailDTO(row!));
 };
 
@@ -87,6 +92,12 @@ export const onRequestPatch: PagesFunction<Env> = async ({ request, env, params 
   const row = await env.DB.prepare("SELECT * FROM templates WHERE id = ?")
     .bind(id)
     .first<TemplateRow>();
+
+  // Re-listing (isListed: false -> true) is the one PATCH case that needs a
+  // fresh cache — unlisting doesn't need to clear it (unreachable either way).
+  if (body.isListed && row!.is_listed === 1) {
+    await warmDefaultPreview(env.RENDER_QUEUE, id, row!.source);
+  }
 
   return Response.json(toDetailDTO(row!));
 };

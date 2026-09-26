@@ -2,10 +2,10 @@ FROM node:22-slim
 
 # openscad-nightly (not Debian's packaged `openscad`, which is stuck at
 # 2021.01): pulls in the Manifold geometry backend, which is 5-30x faster
-# than the CGAL engine both builds otherwise share — see
-# docs/adr/0006-manifold-backend-for-server-side-render.md for why this is
-# worth the precision trade-off server-side but not (yet) swapped into the
-# client-side WASM preview. Nightly repo is Debian-12-only right now, which
+# than CGAL — see docs/adr/0006-manifold-backend-for-server-side-render.md
+# (the server side) and docs/adr/0011-client-side-manifold-backend.md (the
+# client-side WASM preview, which moved to Manifold too — both now agree).
+# Nightly repo is Debian-12-only right now, which
 # matches this base image (bookworm) — see
 # https://openscad.org/downloads.html#snapshots if that ever needs bumping.
 # Symlinked to `openscad` so server.js doesn't need to know the package name.

@@ -78,6 +78,7 @@ self.onmessage = async (event: MessageEvent<RenderRequest>) => {
 
     const args = [
       "/input.scad",
+      "--backend=manifold",
       ...defines.flatMap((d) => ["-D", d]),
       "-o",
       "/output.stl",

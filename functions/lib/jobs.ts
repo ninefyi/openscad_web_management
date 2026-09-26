@@ -16,9 +16,25 @@ export interface ExportJobRow {
   updated_at: string;
 }
 
-export interface QueueMessage {
+/** An Export Job to process — the tracked, pollable kind (see CONTEXT.md:
+ * Export Job). */
+export interface ExportJobMessage {
   jobId: string;
 }
+
+/** Precompute a Template's default-Configuration preview and cache it — no
+ * D1 row, nobody polls this by id, so it just carries what the render
+ * needs. No `defines`: a Template's declared defaults ARE its `.scad`
+ * source's own variable values, so rendering the raw source with zero `-D`
+ * overrides already produces the default Configuration's Mesh (see
+ * docs/adr/0010-cached-default-preview.md). */
+export interface WarmDefaultPreviewMessage {
+  kind: "warm-default-preview";
+  templateId: string;
+  source: string;
+}
+
+export type QueueMessage = ExportJobMessage | WarmDefaultPreviewMessage;
 
 /** A queued/rendering job older than this is stale — the consumer fails it
  * without rendering rather than burning container time on a request the
@@ -80,6 +96,19 @@ export async function createJob(
     )
     .run();
   return id;
+}
+
+/** Fire-and-forget: ask render-worker to warm a Template's default-preview
+ * cache. Only call this when the Template is Listed — an unlisted one has
+ * no reachable Customize URL for the cache to ever serve (see CONTEXT.md:
+ * Listed). Failures are invisible by design (see ADR-0010) — the caller
+ * doesn't await anything beyond the enqueue itself succeeding. */
+export async function warmDefaultPreview(
+  queue: Queue<QueueMessage>,
+  templateId: string,
+  source: string,
+): Promise<void> {
+  await queue.send({ kind: "warm-default-preview", templateId, source });
 }
 
 export async function getJob(db: D1Database, id: string): Promise<ExportJobRow | null> {

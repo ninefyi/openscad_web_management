@@ -1,5 +1,6 @@
 import type { Env } from "../../../lib/env";
 import { toDetailDTO, toSummaryDTO, uniqueSlug, type TemplateRow } from "../../../lib/db";
+import { warmDefaultPreview } from "../../../lib/jobs";
 
 interface CreatePayload {
   name: string;
@@ -50,6 +51,10 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   const row = await env.DB.prepare("SELECT * FROM templates WHERE id = ?")
     .bind(id)
     .first<TemplateRow>();
+
+  if (row!.is_listed === 1) {
+    await warmDefaultPreview(env.RENDER_QUEUE, id, body.source);
+  }
 
   return Response.json(toDetailDTO(row!), { status: 201 });
 };
