@@ -165,7 +165,13 @@ export function AdminEditor() {
 
   function handleRenderOnServer() {
     setPreviewSource("server");
-    serverPreview.run(() => submitAdminRender(source, visibleConfiguration(appliedParams, config)));
+    const configuration = visibleConfiguration(appliedParams, config);
+    // Source is part of the key, not just Parameter values — an Admin
+    // editing the .scad itself must still get a fresh render.
+    serverPreview.run(
+      () => submitAdminRender(source, configuration),
+      JSON.stringify([source, configuration]),
+    );
   }
 
   function handleConfigChange(paramName: string, value: Configuration[string]) {
