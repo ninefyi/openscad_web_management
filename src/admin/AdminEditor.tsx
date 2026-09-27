@@ -136,7 +136,7 @@ export function AdminEditor() {
     error: clientError,
     skipped,
     renderInBrowser,
-  } = useRenderMesh(draftTemplate, config, complexity.hasExpensiveLoop);
+  } = useRenderMesh(draftTemplate, config, complexity.hasExpensiveLoop, true);
   const serverPreview = useServerPreview();
   const canvasElRef = useRef<HTMLCanvasElement | null>(null);
 

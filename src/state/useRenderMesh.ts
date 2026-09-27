@@ -56,13 +56,13 @@ function cacheKey(source: string, defines: string[]): string {
  * Template, subsequent Configuration changes render normally (including
  * through the cache) without asking again.
  *
- * `useDefaultPreviewCache` (customer-facing Customize view only — never
- * the Admin Panel's own live preview, which always wants a current result:
- * see ADR-0009) races a fetch of the Template's precomputed
+ * `useDefaultPreviewCache` races a fetch of the Template's precomputed
  * default-Configuration preview (see ADR-0010) against the normal
- * client-side Render, but only when the current Configuration IS the
- * Template's own default — otherwise there's nothing at that cache key to
- * find. A hit wins (near-instant, and cheap enough to override
+ * client-side Render, but only on the very first render for this Template
+ * instance and only when the current Configuration IS the Template's own
+ * default — otherwise there's nothing at that cache key to find, or (for
+ * the Admin Panel) the cache could be stale against unsaved edits (see
+ * ADR-0009). A hit wins (near-instant, and cheap enough to override
  * skipAutoRender's gate too, since fetching isn't the compute that gate
  * protects against); a miss (never warmed, or a network error) just lets
  * the already-running client render finish untouched, at zero extra cost.
@@ -198,6 +198,15 @@ export function useRenderMesh(
     // for any Parameter missing from config — so the default Configuration's
     // key is just what buildDefines produces from an empty config.
     const isDefaultConfig = key === cacheKey(template.source, buildDefines(template.parameters, {}));
+    // Captured before isFirstForTemplateRef is (maybe) flipped below — the
+    // cache at /api/templates/:id/default-preview only reflects whatever
+    // was true as of the last Save, so it's only trustworthy on the very
+    // first render for this Template instance, before any edit (source or
+    // Configuration) could have happened. Without this, an Admin editing
+    // unsaved draft source could dial a Configuration back to matching
+    // "default" and get served a stale, previously-Saved STL instead of a
+    // render of their actual draft — see ADR-0009.
+    const isFirstRenderForTemplate = isFirstForTemplateRef.current;
     const controller = new AbortController();
 
     // Races a fetch of the precomputed default-preview cache (ADR-0010)
@@ -206,7 +215,7 @@ export function useRenderMesh(
     // isn't the compute that gate protects against); a miss is a silent
     // no-op, leaving whatever's already scheduled to carry on untouched.
     function tryDefaultPreviewCache(requestId: number) {
-      if (!useDefaultPreviewCache || !isDefaultConfig) return;
+      if (!useDefaultPreviewCache || !isDefaultConfig || !isFirstRenderForTemplate) return;
       fetch(`/api/templates/${template.id}/default-preview`, { signal: controller.signal })
         .then((res) => (res.ok ? res.arrayBuffer() : Promise.reject(new Error("miss"))))
         .then((buf) => {
