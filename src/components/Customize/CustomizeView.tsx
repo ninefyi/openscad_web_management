@@ -38,14 +38,22 @@ export function CustomizeView({ template, onBack, initialConfig }: CustomizeView
   const complexity = useMemo(() => estimateComplexity(template.source), [template.source]);
   const complexityHint = useMemo(() => complexityMessage(complexity), [complexity]);
 
-  // Always auto-renders, even for a Template flagged complex — see
-  // ADR-0012 for why the earlier skip-then-click gate (ADR-0007) is gone
-  // for customers specifically; useRenderMesh's own 60s timeout is still
-  // the safety net if a render genuinely can't finish. `true` here opts
-  // into the default-preview cache race (ADR-0010) — the Admin Panel's
-  // own preview never does (see ADR-0009: an Admin always wants a current
-  // result), and keeps its own explicit skip-then-click gate as-is.
-  const { geometry, loading, error } = useRenderMesh(template, config, false, true);
+  // Auto-renders once per Template (still benefiting from the
+  // default-preview cache race on that first paint — ADR-0010), but a
+  // Configuration change after that only marks the Mesh stale; the
+  // customer clicks Render to actually re-render (ADR-0013, following
+  // ADR-0012's removal of the old skip-then-click gate, ADR-0007, for a
+  // different reason — this isn't about protecting against a hang,
+  // useRenderMesh's 60s timeout still does that, it's about not firing a
+  // render on every slider tick at all). The Admin Panel's own preview
+  // does neither — see ADR-0009: an Admin always wants a current result.
+  const { geometry, loading, error, render, hasPendingChanges } = useRenderMesh(
+    template,
+    config,
+    false,
+    true,
+    true,
+  );
 
   function handleChange(name: string, value: Parameter["defaultValue"]) {
     setConfig((prev) => ({ ...prev, [name]: value }));
@@ -68,6 +76,13 @@ export function CustomizeView({ template, onBack, initialConfig }: CustomizeView
         </button>
         <h1>{template.name}</h1>
         <div className="customize-header-actions">
+          <button
+            className="render-button"
+            onClick={render}
+            disabled={!hasPendingChanges || loading}
+          >
+            Render
+          </button>
           <ExportButton
             templateId={template.id}
             parameters={template.parameters}
@@ -86,6 +101,9 @@ export function CustomizeView({ template, onBack, initialConfig }: CustomizeView
         />
         <aside className="customize-sidebar">
           {template.description && <p className="template-description">{template.description}</p>}
+          {hasPendingChanges && !loading && (
+            <p className="pending-changes-hint">Parameters have changed — click Render to update.</p>
+          )}
           {complexityHint && <p className="complexity-hint">{complexityHint}</p>}
           <ImageGallery templateId={template.id} />
           <ColorPicker color={color} onChange={handleColorChange} />
