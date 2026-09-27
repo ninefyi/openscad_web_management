@@ -1,8 +1,10 @@
 import { useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import type { Configuration, Parameter, Template } from "../../types/template";
 import { defaultConfiguration } from "../../templates/defaultConfiguration";
 import { useRenderMesh } from "../../state/useRenderMesh";
 import { estimateComplexity, complexityMessage } from "../../customizer/estimateComplexity";
+import { useAccount } from "../../state/AccountContext";
 import { Viewer } from "./Viewer";
 import { ParameterPanel } from "./ParameterPanel";
 import { ExportButton } from "./ExportButton";
@@ -54,6 +56,11 @@ export function CustomizeView({ template, onBack, initialConfig }: CustomizeView
     true,
     true,
   );
+  // Render (the manual re-render click, not the automatic first paint —
+  // see ADR-0013) requires a signed-in Account, same gate as Export: an
+  // anonymous visitor still sees the Template's default Configuration
+  // instantly, just can't preview their own edits without signing in.
+  const { account } = useAccount();
 
   function handleChange(name: string, value: Parameter["defaultValue"]) {
     setConfig((prev) => ({ ...prev, [name]: value }));
@@ -76,13 +83,19 @@ export function CustomizeView({ template, onBack, initialConfig }: CustomizeView
         </button>
         <h1>{template.name}</h1>
         <div className="customize-header-actions">
-          <button
-            className="render-button"
-            onClick={render}
-            disabled={!hasPendingChanges || loading}
-          >
-            Render
-          </button>
+          {account === null ? (
+            <Link className="admin-link" to="/login">
+              Sign in to render
+            </Link>
+          ) : (
+            <button
+              className="render-button"
+              onClick={render}
+              disabled={!hasPendingChanges || loading || account === undefined}
+            >
+              Render
+            </button>
+          )}
           <ExportButton
             templateId={template.id}
             parameters={template.parameters}
@@ -102,7 +115,11 @@ export function CustomizeView({ template, onBack, initialConfig }: CustomizeView
         <aside className="customize-sidebar">
           {template.description && <p className="template-description">{template.description}</p>}
           {hasPendingChanges && !loading && (
-            <p className="pending-changes-hint">Parameters have changed — click Render to update.</p>
+            <p className="pending-changes-hint">
+              {account === null
+                ? "Parameters have changed — sign in to preview the update."
+                : "Parameters have changed — click Render to update."}
+            </p>
           )}
           {complexityHint && <p className="complexity-hint">{complexityHint}</p>}
           <ImageGallery templateId={template.id} />
