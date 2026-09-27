@@ -50,6 +50,9 @@ export function AdminList() {
           <Link className="admin-link" to="/">
             View Gallery
           </Link>
+          <Link className="admin-link" to="/admin/jobs">
+            Export Jobs
+          </Link>
           <Link className="export-button" to="/admin/new">
             + New Template
           </Link>

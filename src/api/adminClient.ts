@@ -113,3 +113,29 @@ export async function deleteTemplateImage(templateId: string, imageId: string): 
   });
   if (!res.ok) throw new Error("Couldn't delete this image.");
 }
+
+export interface AdminJob {
+  id: string;
+  template_id: string | null;
+  status: "queued" | "rendering" | "done" | "failed";
+  format: "stl" | "3mf";
+  error: string | null;
+  r2_key: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export async function listAdminJobs(): Promise<AdminJob[]> {
+  const res = await fetch("/api/admin/jobs");
+  if (!res.ok) throw new Error("Couldn't load jobs.");
+  return res.json();
+}
+
+export async function deleteAdminJobs(ids: string[]): Promise<void> {
+  const res = await fetch("/api/admin/jobs", {
+    method: "DELETE",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ ids }),
+  });
+  if (!res.ok) throw new Error("Couldn't delete the selected jobs.");
+}
