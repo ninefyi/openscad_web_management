@@ -9,16 +9,18 @@ preview_urls = false
 # The actual render engine — native OpenSCAD in a container (see
 # container/Dockerfile), not the WASM build the frontend uses. Sized for
 # a worst-case burst of ~100 concurrent renders with queueing acceptable
-# (see docs/adr/0014-render-container-capacity.md) — "lite"'s 1/16 vCPU
-# was fine at low volume, but is a poor match for a Minkowski-heavy
-# Template (observed 80-120s on "lite" in production for one); 25
+# (see docs/adr/0014-render-container-capacity.md) — standard-4 specifically
+# because OpenSCAD's TBB-based Manifold parallelism needs >=2 real cores to
+# show any speedup at all (a smaller "1 vCPU" tier measured identically to
+# the original 1/16-vCPU one); 4 real cores measured ~7x faster on this
+# library's worst-case Minkowski-heavy Template (120s -> 18s), and 25
 # instances clears a 100-job burst in a handful of queued rounds rather
 # than one at a time, while still bounding worst-case spend rate (no
 # platform-level hard cost cap exists — see the same ADR).
 [[containers]]
 image = "./container/Dockerfile"
 class_name = "RenderContainer"
-instance_type = "standard-2"
+instance_type = "standard-4"
 max_instances = 25
 
 [[durable_objects.bindings]]
