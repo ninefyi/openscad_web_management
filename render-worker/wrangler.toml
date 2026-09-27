@@ -7,11 +7,19 @@ workers_dev = false
 preview_urls = false
 
 # The actual render engine — native OpenSCAD in a container (see
-# container/Dockerfile), not the WASM build the frontend uses.
+# container/Dockerfile), not the WASM build the frontend uses. Sized for
+# a worst-case burst of ~100 concurrent renders with queueing acceptable
+# (see docs/adr/0014-render-container-capacity.md) — "lite"'s 1/16 vCPU
+# was fine at low volume, but is a poor match for a Minkowski-heavy
+# Template (observed 80-120s on "lite" in production for one); 25
+# instances clears a 100-job burst in a handful of queued rounds rather
+# than one at a time, while still bounding worst-case spend rate (no
+# platform-level hard cost cap exists — see the same ADR).
 [[containers]]
 image = "./container/Dockerfile"
 class_name = "RenderContainer"
-max_instances = 5
+instance_type = "standard-2"
+max_instances = 25
 
 [[durable_objects.bindings]]
 name = "RENDER_CONTAINER"
