@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { Mesh } from "three";
 import { STLExporter } from "three/examples/jsm/exporters/STLExporter.js";
 import type { Configuration, Template } from "../types/template";
+import type { TemplateDetail } from "../api/client";
 import { parseCustomizer } from "../customizer/parseCustomizer";
 import { estimateComplexity, complexityMessage } from "../customizer/estimateComplexity";
 import { applyManifest, type TemplateManifest } from "../templates/applyManifest";
@@ -55,46 +56,51 @@ type ExportState =
   | { phase: "working"; message: string }
   | { phase: "error"; message: string };
 
+// The editor itself only mounts once the Template has loaded, so its
+// render hook's automatic first paint (and default-preview cache race)
+// happens against the real Saved source, never an empty placeholder.
 export function AdminEditor() {
   const { id } = useParams<{ id: string }>();
-  const isNew = !id;
-  const navigate = useNavigate();
-
-  const [name, setName] = useState("");
-  const [description, setDescription] = useState("");
-  const [source, setSource] = useState(isNew ? PLACEHOLDER_SOURCE : "");
-  const [labels, setLabels] = useState<Record<string, string>>({});
-  const [hide, setHide] = useState<string[]>([]);
-  const [isListed, setIsListed] = useState(true);
-
-  const [loading, setLoading] = useState(!isNew);
-  const [loadError, setLoadError] = useState<string | null>(null);
-  const [saveStage, setSaveStage] = useState<string | null>(null);
-  const [saveError, setSaveError] = useState<string | null>(null);
-  const [exportFormat, setExportFormat] = useState<ExportFormat>("stl");
-  const [exportState, setExportState] = useState<ExportState>({ phase: "idle" });
+  const [loaded, setLoaded] = useState<
+    { id: string; detail: TemplateDetail } | { id: string; error: string } | null
+  >(null);
 
   useEffect(() => {
-    if (isNew) return;
+    if (!id) return;
     // The admin-only endpoint, not ../api/client's public one — a template
     // that's been unlisted (see CONTEXT.md: Listed) 404s on the public path,
     // but the Admin Panel still needs to load and edit it.
     fetchAdminTemplateDetail(id).then(
-      (detail) => {
-        setName(detail.name);
-        setDescription(detail.description ?? "");
-        setSource(detail.source);
-        setLabels(detail.manifest.labels);
-        setHide(detail.manifest.hide);
-        setIsListed(detail.isListed);
-        setLoading(false);
-      },
-      (err: Error) => {
-        setLoadError(err.message);
-        setLoading(false);
-      },
+      (detail) => setLoaded({ id, detail }),
+      (err: Error) => setLoaded({ id, error: err.message }),
     );
-  }, [id, isNew]);
+  }, [id]);
+
+  if (!id) return <AdminEditorForm key="new" initial={null} />;
+  if (loaded?.id !== id) return <div className="page-message">Loading…</div>;
+  if ("error" in loaded) return <div className="page-message">{loaded.error}</div>;
+  return <AdminEditorForm key={id} id={id} initial={loaded.detail} />;
+}
+
+function AdminEditorForm({ id, initial }: { id?: string; initial: TemplateDetail | null }) {
+  const isNew = !id;
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const [name, setName] = useState(initial?.name ?? "");
+  const [description, setDescription] = useState(initial?.description ?? "");
+  const [source, setSource] = useState(initial?.source ?? PLACEHOLDER_SOURCE);
+  const [labels, setLabels] = useState<Record<string, string>>(initial?.manifest.labels ?? {});
+  const [hide, setHide] = useState<string[]>(initial?.manifest.hide ?? []);
+  const [isListed, setIsListed] = useState(initial?.isListed ?? true);
+
+  const [saveStage, setSaveStage] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [saveNotice, setSaveNotice] = useState<string | null>(
+    (location.state as { saveNotice?: string } | null)?.saveNotice ?? null,
+  );
+  const [exportFormat, setExportFormat] = useState<ExportFormat>("stl");
+  const [exportState, setExportState] = useState<ExportState>({ phase: "idle" });
 
   const parsedParams = useMemo(() => parseCustomizer(source), [source]);
   const manifest: TemplateManifest = useMemo(
@@ -135,26 +141,29 @@ export function AdminEditor() {
     loading: clientLoading,
     error: clientError,
     skipped,
-    renderInBrowser,
+    render: renderInBrowser,
+    isCurrent: clientIsCurrent,
   } = useRenderMesh(draftTemplate, config, complexity.hasExpensiveLoop, true);
   const serverPreview = useServerPreview();
   const canvasElRef = useRef<HTMLCanvasElement | null>(null);
 
-  // Render (browser) and Render (server) are both always available — see
-  // CONTEXT.md: Render on server, ADR-0008. Whichever the Admin last
-  // triggered is what the Viewer shows; a Configuration change falls back
-  // to the browser engine (whose auto-render, unless skipped, already
-  // reflects the new values — a stale server render from before the
-  // change would be misleading to keep showing).
+  // Render (browser) and Render (server) are both always available and are
+  // the only things that re-render (ADR-0015). Whichever the Admin last
+  // clicked is what the Viewer keeps showing, marked stale once the source
+  // or Configuration moves on from what it was rendered with.
   const [previewSource, setPreviewSource] = useState<"client" | "server">("client");
-  useEffect(() => {
-    setPreviewSource("client");
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [config]);
+
+  const serverConfiguration = visibleConfiguration(appliedParams, config);
+  // Source is part of the key, not just Parameter values — an Admin
+  // editing the .scad itself must still get a fresh render.
+  const serverKey = JSON.stringify([source, serverConfiguration]);
 
   const geometry = previewSource === "server" ? serverPreview.geometry : clientGeometry;
   const previewLoading = previewSource === "server" ? serverPreview.working : clientLoading;
   const previewError = previewSource === "server" ? serverPreview.error : clientError;
+  const previewIsCurrent =
+    geometry !== null &&
+    (previewSource === "server" ? serverPreview.renderedKey === serverKey : clientIsCurrent);
 
   const canSave = name.trim() !== "" && saveStage === null;
 
@@ -165,13 +174,7 @@ export function AdminEditor() {
 
   function handleRenderOnServer() {
     setPreviewSource("server");
-    const configuration = visibleConfiguration(appliedParams, config);
-    // Source is part of the key, not just Parameter values — an Admin
-    // editing the .scad itself must still get a fresh render.
-    serverPreview.run(
-      () => submitAdminRender(source, configuration),
-      JSON.stringify([source, configuration]),
-    );
+    serverPreview.run(() => submitAdminRender(source, serverConfiguration), serverKey);
   }
 
   function handleConfigChange(paramName: string, value: Configuration[string]) {
@@ -194,10 +197,12 @@ export function AdminEditor() {
   }
 
   // Save persists metadata only — no render check first (see CONTEXT.md:
-  // Save, ADR-0009). Use Render (browser)/Render (server) beforehand to
-  // check the design actually renders; Save itself doesn't gate on it.
+  // Save, ADR-0009). The thumbnail is only replaced when the Viewer shows
+  // the current draft (ADR-0015); otherwise the previous one stays and the
+  // Admin stays on this page to Render and Save again.
   async function handleSave() {
     setSaveError(null);
+    setSaveNotice(null);
     setSaveStage("Saving…");
     try {
       const input = {
@@ -208,6 +213,14 @@ export function AdminEditor() {
         manifest: { labels, order: [], hide },
       };
       const saved = isNew ? await createTemplate(input) : await updateTemplate(id, input);
+
+      if (!previewIsCurrent) {
+        const notice =
+          "Saved, but the thumbnail wasn't updated — the preview doesn't match this draft. Click Render, then Save again.";
+        if (isNew) navigate(`/admin/${saved.id}`, { replace: true, state: { saveNotice: notice } });
+        else setSaveNotice(notice);
+        return;
+      }
 
       if (canvasElRef.current) {
         const blob = await new Promise<Blob | null>((resolve) =>
@@ -235,14 +248,15 @@ export function AdminEditor() {
     }
   }
 
-  // STL from whatever the browser already has rendered, when there is one
-  // — instant, no Container round-trip. 3MF can only ever come from the
-  // server (openscad-wasm has no lib3mf — see ADR-0009), and STL falls
-  // back to the server too when the browser has nothing to export yet.
+  // STL from what the browser already rendered, when that matches the
+  // current draft — instant, no Container round-trip. 3MF can only ever
+  // come from the server (openscad-wasm has no lib3mf — see ADR-0009), and
+  // STL falls back to the server too when the browser's Mesh is missing or
+  // stale, so the file always matches what's configured (ADR-0015).
   async function handleExport() {
     setExportState({ phase: "working", message: "Preparing…" });
     try {
-      if (exportFormat === "stl" && clientGeometry) {
+      if (exportFormat === "stl" && clientGeometry && clientIsCurrent) {
         const exporter = new STLExporter();
         const data = exporter.parse(new Mesh(clientGeometry), { binary: true });
         triggerDownload(new Blob([data], { type: "model/stl" }), `${slugify(name)}.stl`);
@@ -250,11 +264,7 @@ export function AdminEditor() {
         return;
       }
 
-      const { jobId } = await submitAdminRender(
-        source,
-        visibleConfiguration(appliedParams, config),
-        exportFormat,
-      );
+      const { jobId } = await submitAdminRender(source, serverConfiguration, exportFormat);
       const final = await pollUntilSettled(jobId, (status) => {
         if (status.status === "queued") {
           setExportState({
@@ -285,9 +295,6 @@ export function AdminEditor() {
       });
     }
   }
-
-  if (loading) return <div className="page-message">Loading…</div>;
-  if (loadError) return <div className="page-message">{loadError}</div>;
 
   return (
     <div className="admin-editor">
@@ -325,6 +332,7 @@ export function AdminEditor() {
       </header>
 
       {saveError && <p className="gallery-error">{saveError}</p>}
+      {saveNotice && <p className="pending-changes-hint">{saveNotice}</p>}
       {exportState.phase === "error" && (
         <p className="admin-render-error">{exportState.message}</p>
       )}
@@ -424,6 +432,11 @@ export function AdminEditor() {
               )
             }
           />
+          {geometry && !previewIsCurrent && !previewLoading && (
+            <p className="pending-changes-hint">
+              The source or parameters have changed — click Render to update.
+            </p>
+          )}
           {complexityHint && !skipped && <p className="complexity-hint">{complexityHint}</p>}
           <div className="admin-editor-params">
             <ParameterPanel parameters={appliedParams} config={config} onChange={handleConfigChange} />

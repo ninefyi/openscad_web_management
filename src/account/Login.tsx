@@ -1,10 +1,13 @@
 import { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import { login } from "../api/accountClient";
 import { useAccount } from "../state/AccountContext";
+import { safeReturnPath, signUpPath } from "./signInReturn";
 
 export function Login() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const returnTo = safeReturnPath(searchParams.get("next"));
   const { setAccount } = useAccount();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -18,7 +21,7 @@ export function Login() {
     try {
       const account = await login(email, password);
       setAccount(account);
-      navigate("/designs");
+      navigate(returnTo ?? "/designs");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Couldn't sign in.");
     } finally {
@@ -54,7 +57,7 @@ export function Login() {
         </button>
       </form>
       <p className="account-page-footer">
-        Don't have an account? <Link to="/signup">Create one</Link>
+        Don't have an account? <Link to={signUpPath(returnTo)}>Create one</Link>
       </p>
     </div>
   );

@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
 import type { Configuration, Parameter } from "../../types/template";
 import { submitExport, pollUntilSettled, visibleConfiguration } from "../../api/exportClient";
 import { useAccount } from "../../state/AccountContext";
@@ -16,9 +15,8 @@ type ExportState =
   | { phase: "working"; message: string }
   | { phase: "error"; message: string };
 
-// Export requires a signed-in Account (see CONTEXT.md: Export) — unlike
-// Render on server, which stays anonymous-capable since it shares the same
-// Export Job pipeline but never produces a download.
+// Only shown to a signed-in Account (see CONTEXT.md: Export) — the
+// signed-out Sign in button lives in CustomizeView.
 export function ExportButton({ templateId, parameters, configuration, fileName }: ExportButtonProps) {
   const [state, setState] = useState<ExportState>({ phase: "idle" });
   const { account } = useAccount();
@@ -60,16 +58,6 @@ export function ExportButton({ templateId, parameters, configuration, fileName }
         message: err instanceof Error ? err.message : "Couldn't export this file.",
       });
     }
-  }
-
-  if (account === null) {
-    return (
-      <div className="export-control">
-        <Link className="admin-link" to="/login">
-          Sign in to export
-        </Link>
-      </div>
-    );
   }
 
   return (

@@ -5,26 +5,24 @@ import type { Configuration, Parameter, Template } from "../types/template";
 import { serializeValue } from "../worker/serializeValue";
 import type { RenderRequest, RenderResponse } from "../worker/render.worker";
 
-const DEBOUNCE_MS = 400;
 const MAX_CACHE_ENTRIES = 10;
 
 // openscad-wasm runs callMain() synchronously inside the Worker thread, so a
 // pathological model (many boolean ops/text() at a high $fn) doesn't error
 // out or time out on its own — it just occupies the Worker forever, and
 // since the Worker's message loop is blocked, it can't even respond to a
-// later render request once the user changes a parameter. Terminating the
-// Worker from the main thread is the only way to interrupt it, so a render
-// that's still running after this long is treated as unrecoverable and
-// killed rather than left to run indefinitely.
+// later render request. Terminating the Worker from the main thread is the
+// only way to interrupt it, so a render that's still running after this
+// long is treated as unrecoverable and killed rather than left to run
+// indefinitely.
 const RENDER_TIMEOUT_MS = 60_000;
 
 export interface RenderState {
   geometry: BufferGeometry | null;
   loading: boolean;
   error: string | null;
-  /** True when the caller passed skipAutoRender and the user hasn't opted
-   * in yet — the client-side render was never attempted, not merely still
-   * running. Distinguishes "we didn't try" from "we're trying." */
+  /** True when the first paint was held back by skipAutoRender and nothing
+   * has been rendered since — "we didn't try," not "we're trying." */
   skipped: boolean;
 }
 
@@ -38,59 +36,71 @@ function cacheKey(source: string, defines: string[]): string {
   return source + "\0" + defines.join("\0");
 }
 
+interface RenderRequestSnapshot {
+  source: string;
+  defines: string[];
+  key: string;
+  /** The automatic first paint, as opposed to an explicit render() click. */
+  isFirst: boolean;
+  isDefaultConfig: boolean;
+  skip: boolean;
+  tick: number;
+}
+
 /**
  * Renders a Template + Configuration into a Mesh via the render Worker,
- * debounced, keeping the last valid geometry on screen through a failed
- * Render (see ADR-0001 / CONTEXT.md: Render). Identical (source, defines)
- * pairs are served from an in-memory cache instead of re-running the Worker
- * — cheap, since flipping a checkbox back and forth or undoing a slider
- * drag is common and openscad-wasm has no reason to redo work it's already
- * done for this exact Configuration.
+ * keeping the last valid geometry on screen through a failed Render (see
+ * ADR-0001 / CONTEXT.md: Render).
  *
- * `skipAutoRender` (set by the caller from estimateComplexity's
- * hasExpensiveLoop) holds off the automatic client-side attempt entirely
- * for a design in the class that can hang the tab for the full
- * RENDER_TIMEOUT_MS before surfacing anything — the caller shows a
- * call-to-action instead of a spinner, and `renderInBrowser()` is the
- * user's explicit opt-in to try anyway. Once opted in for a given
- * Template, subsequent Configuration changes render normally (including
- * through the cache) without asking again.
+ * Only two things ever start a Render: the automatic first paint when the
+ * hook mounts, and an explicit `render()` call (ADR-0013, ADR-0015).
+ * Changing `template.source` or `config` afterwards never renders — it only
+ * makes `hasPendingChanges` true. This is enforced structurally: the render
+ * effect depends on a snapshot of the inputs taken at mount or at
+ * `render()`, never on the live inputs themselves.
  *
- * `useDefaultPreviewCache` races a fetch of the Template's precomputed
- * default-Configuration preview (see ADR-0010) against the normal
- * client-side Render, but only on the very first render for this Template
- * instance and only when the current Configuration IS the Template's own
- * default — otherwise there's nothing at that cache key to find, or (for
- * the Admin Panel) the cache could be stale against unsaved edits (see
- * ADR-0009). A hit wins (near-instant, and cheap enough to override
- * skipAutoRender's gate too, since fetching isn't the compute that gate
- * protects against); a miss (never warmed, or a network error) just lets
- * the already-running client render finish untouched, at zero extra cost.
+ * `skipAutoRender` holds back live compute on the first paint for a design
+ * estimateComplexity flags as likely to hang the tab (ADR-0007); `render()`
+ * is the explicit opt-in. `useDefaultPreviewCache` races a fetch of the
+ * Template's precomputed default-Configuration preview (ADR-0010) on that
+ * first paint only. The cache reflects the last Save, and the first paint
+ * is the only point guaranteed to be showing exactly that.
  *
- * `requireManualTrigger` (customer-facing Customize view only — see
- * ADR-0013) still auto-renders the very first time for a given Template
- * (so the default-preview cache above keeps paying off on first paint),
- * but a Configuration change after that only marks `hasPendingChanges`
- * true instead of firing anything — no debounce timer, no Worker, no
- * network — until the caller calls `render()`. A render fired that way
- * skips the debounce delay entirely (a click is already a single,
- * deliberate action; there's nothing left to debounce against once
- * Configuration changes no longer auto-fire).
+ * Identical (source, defines) pairs are served from an in-memory cache, so
+ * clicking Render again with nothing changed re-shows the result instead of
+ * recomputing it.
  */
 export function useRenderMesh(
   template: Template,
   config: Configuration,
   skipAutoRender = false,
   useDefaultPreviewCache = false,
-  requireManualTrigger = false,
-): RenderState & { renderInBrowser: () => void; render: () => void; hasPendingChanges: boolean } {
-  const [state, setState] = useState<RenderState>({
+): RenderState & {
+  render: () => void;
+  hasPendingChanges: boolean;
+  /** Whether `geometry` was rendered from exactly the current source and
+   * Configuration — false while stale, or before anything has rendered. */
+  isCurrent: boolean;
+} {
+  const defines = buildDefines(template.parameters, config);
+  const key = cacheKey(template.source, defines);
+
+  const [request, setRequest] = useState<RenderRequestSnapshot>(() => ({
+    source: template.source,
+    defines,
+    key,
+    isFirst: true,
+    isDefaultConfig: key === cacheKey(template.source, buildDefines(template.parameters, {})),
+    skip: skipAutoRender,
+    tick: 0,
+  }));
+  const [state, setState] = useState<RenderState & { renderedKey: string | null }>({
     geometry: null,
     loading: !skipAutoRender,
     error: null,
     skipped: skipAutoRender,
+    renderedKey: null,
   });
-  const [hasPendingChanges, setHasPendingChanges] = useState(false);
 
   const workerRef = useRef<Worker | null>(null);
   const requestIdRef = useRef(0);
@@ -99,13 +109,6 @@ export function useRenderMesh(
   const loaderRef = useRef(new STLLoader());
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const cacheRef = useRef<Map<string, BufferGeometry>>(new Map());
-  const forcedRef = useRef(false);
-  const prevSourceRef = useRef(template.source);
-  const [forceTick, setForceTick] = useState(0);
-  const isFirstForTemplateRef = useRef(true);
-  const lastFiredKeyRef = useRef<string | null>(null);
-  const pendingManualRef = useRef(false);
-  const [manualTick, setManualTick] = useState(0);
 
   function clearPendingTimeout() {
     if (timeoutRef.current) {
@@ -114,10 +117,10 @@ export function useRenderMesh(
     }
   }
 
-  function rememberGeometry(key: string, geometry: BufferGeometry) {
+  function rememberGeometry(cacheEntryKey: string, geometry: BufferGeometry) {
     const cache = cacheRef.current;
-    cache.delete(key);
-    cache.set(key, geometry);
+    cache.delete(cacheEntryKey);
+    cache.set(cacheEntryKey, geometry);
     if (cache.size > MAX_CACHE_ENTRIES) {
       const oldestKey = cache.keys().next().value;
       if (oldestKey !== undefined) {
@@ -134,15 +137,16 @@ export function useRenderMesh(
 
       pendingRef.current = false;
       clearPendingTimeout();
+      const renderedKey = pendingKeyRef.current;
+      pendingKeyRef.current = null;
 
       if (msg.ok) {
         const geometry = loaderRef.current.parse(msg.stl);
-        if (pendingKeyRef.current) rememberGeometry(pendingKeyRef.current, geometry);
-        setState({ geometry, loading: false, error: null, skipped: false });
+        if (renderedKey) rememberGeometry(renderedKey, geometry);
+        setState({ geometry, loading: false, error: null, skipped: false, renderedKey });
       } else {
         setState((prev) => ({ ...prev, loading: false, error: msg.error, skipped: false }));
       }
-      pendingKeyRef.current = null;
     };
   }
 
@@ -167,112 +171,66 @@ export function useRenderMesh(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // A new design gets a fresh opt-in prompt even if the previous one was
-  // accepted — accepting the risk for one Template shouldn't silently carry
-  // over to a different one. Same reasoning for isFirstForTemplateRef: a
-  // swapped-in Template's first Render should auto-fire again, not inherit
-  // "already rendered once" from whatever the hook was last showing.
-  useEffect(() => {
-    if (prevSourceRef.current !== template.source) {
-      prevSourceRef.current = template.source;
-      forcedRef.current = false;
-      isFirstForTemplateRef.current = true;
-      lastFiredKeyRef.current = null;
-    }
-  }, [template.source]);
-
-  function renderInBrowser() {
-    forcedRef.current = true;
-    setForceTick((t) => t + 1);
-  }
-
   function render() {
-    pendingManualRef.current = true;
-    setManualTick((t) => t + 1);
+    setRequest((prev) => ({
+      source: template.source,
+      defines,
+      key,
+      isFirst: false,
+      isDefaultConfig: false,
+      skip: false,
+      tick: prev.tick + 1,
+    }));
   }
 
   useEffect(() => {
-    const defines = buildDefines(template.parameters, config);
-    const key = cacheKey(template.source, defines);
-    // A Template's own declared defaults ARE what buildDefines falls back to
-    // for any Parameter missing from config — so the default Configuration's
-    // key is just what buildDefines produces from an empty config.
-    const isDefaultConfig = key === cacheKey(template.source, buildDefines(template.parameters, {}));
-    // Captured before isFirstForTemplateRef is (maybe) flipped below — the
-    // cache at /api/templates/:id/default-preview only reflects whatever
-    // was true as of the last Save, so it's only trustworthy on the very
-    // first render for this Template instance, before any edit (source or
-    // Configuration) could have happened. Without this, an Admin editing
-    // unsaved draft source could dial a Configuration back to matching
-    // "default" and get served a stale, previously-Saved STL instead of a
-    // render of their actual draft — see ADR-0009.
-    const isFirstRenderForTemplate = isFirstForTemplateRef.current;
     const controller = new AbortController();
+    const tryCache = request.isFirst && request.isDefaultConfig && useDefaultPreviewCache;
 
-    // Races a fetch of the precomputed default-preview cache (ADR-0010)
-    // against whatever the caller schedules next — a hit wins outright
-    // (cheap enough to override skipAutoRender's gate too, since fetching
-    // isn't the compute that gate protects against); a miss is a silent
-    // no-op, leaving whatever's already scheduled to carry on untouched.
+    // A hit wins outright — cheap enough to override the skip gate too,
+    // since fetching isn't the compute that gate protects against. A miss
+    // is a silent no-op, leaving whatever's already scheduled untouched.
     function tryDefaultPreviewCache(requestId: number) {
-      if (!useDefaultPreviewCache || !isDefaultConfig || !isFirstRenderForTemplate) return;
       fetch(`/api/templates/${template.id}/default-preview`, { signal: controller.signal })
         .then((res) => (res.ok ? res.arrayBuffer() : Promise.reject(new Error("miss"))))
         .then((buf) => {
           if (requestId !== requestIdRef.current) return; // superseded or already won
           const geometry = loaderRef.current.parse(buf);
-          rememberGeometry(key, geometry);
+          rememberGeometry(request.key, geometry);
           requestIdRef.current++; // invalidate whatever else is still in flight
-          setState({ geometry, loading: false, error: null, skipped: false });
+          setState({ geometry, loading: false, error: null, skipped: false, renderedKey: request.key });
         })
         .catch(() => {});
     }
 
-    if (skipAutoRender && !forcedRef.current) {
+    if (request.skip) {
       const requestId = ++requestIdRef.current;
-      setState({ geometry: null, loading: false, error: null, skipped: true });
-      tryDefaultPreviewCache(requestId);
+      if (tryCache) tryDefaultPreviewCache(requestId);
       return () => controller.abort();
     }
 
-    // Manual-trigger mode (ADR-0013): the first Render for this Template
-    // still auto-fires below, but a Configuration change after that — one
-    // this effect run wasn't caused by an explicit render() call — just
-    // marks the current Mesh stale instead of firing anything.
-    const isManualFire = pendingManualRef.current;
-    pendingManualRef.current = false;
-    if (requireManualTrigger && !isFirstForTemplateRef.current && !isManualFire) {
-      setHasPendingChanges(key !== lastFiredKeyRef.current);
-      return () => controller.abort();
-    }
-    isFirstForTemplateRef.current = false;
-    lastFiredKeyRef.current = key;
-    setHasPendingChanges(false);
-
-    const cached = cacheRef.current.get(key);
+    const cached = cacheRef.current.get(request.key);
     if (cached) {
-      cacheRef.current.delete(key);
-      cacheRef.current.set(key, cached); // bump to most-recently-used
+      cacheRef.current.delete(request.key);
+      cacheRef.current.set(request.key, cached); // bump to most-recently-used
       requestIdRef.current++; // invalidate any response still in flight
-      setState({ geometry: cached, loading: false, error: null, skipped: false });
+      setState({ geometry: cached, loading: false, error: null, skipped: false, renderedKey: request.key });
       return () => controller.abort();
     }
 
-    // This exact Render is already running (e.g. Render (browser) clicked
-    // mid-auto-render) — let it finish instead of killing identical work.
-    if (pendingRef.current && pendingKeyRef.current === key) {
+    // This exact Render is already running — let it finish instead of
+    // killing identical work.
+    if (pendingRef.current && pendingKeyRef.current === request.key) {
       return () => controller.abort();
     }
 
     const requestId = ++requestIdRef.current;
     setState((prev) => ({ ...prev, loading: true, skipped: false }));
-    tryDefaultPreviewCache(requestId);
+    if (tryCache) tryDefaultPreviewCache(requestId);
 
-    // A render fired by an explicit click (or the first auto-fire) is
-    // already a single, deliberate trigger — nothing left to debounce
-    // against, unlike a rapid slider drag in the auto-render mode.
-    const debounceMs = requireManualTrigger ? 0 : DEBOUNCE_MS;
-    const debounceTimer = setTimeout(() => {
+    // Deferred a tick so a cancelled effect run (StrictMode's double
+    // invocation) never reaches the Worker.
+    const startTimer = setTimeout(() => {
       if (requestId !== requestIdRef.current) return; // a cache hit already won
 
       // A still-running previous render blocks the Worker's message loop
@@ -287,14 +245,14 @@ export function useRenderMesh(
       if (!worker) return;
 
       pendingRef.current = true;
-      pendingKeyRef.current = key;
-      const request: RenderRequest = {
+      pendingKeyRef.current = request.key;
+      const message: RenderRequest = {
         type: "render",
         requestId,
-        source: template.source,
-        defines,
+        source: request.source,
+        defines: request.defines,
       };
-      worker.postMessage(request);
+      worker.postMessage(message);
 
       const staleWorker = worker;
       timeoutRef.current = setTimeout(() => {
@@ -309,14 +267,20 @@ export function useRenderMesh(
             "This design is too complex to preview in the browser and was stopped after 60 seconds. Try simplifying it, or export it anyway — exporting renders on the server instead.",
         }));
       }, RENDER_TIMEOUT_MS);
-    }, debounceMs);
+    }, 0);
 
     return () => {
-      clearTimeout(debounceTimer);
+      clearTimeout(startTimer);
       controller.abort();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [template, config, skipAutoRender, forceTick, useDefaultPreviewCache, requireManualTrigger, manualTick]);
+  }, [request]);
 
-  return { ...state, renderInBrowser, render, hasPendingChanges };
+  const { renderedKey, ...renderState } = state;
+  return {
+    ...renderState,
+    render,
+    hasPendingChanges: key !== request.key,
+    isCurrent: renderedKey === key,
+  };
 }

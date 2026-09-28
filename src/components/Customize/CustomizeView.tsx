@@ -1,10 +1,16 @@
-import { useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
+import { Link, useLocation } from "react-router-dom";
 import type { Configuration, Parameter, Template } from "../../types/template";
 import { defaultConfiguration } from "../../templates/defaultConfiguration";
 import { useRenderMesh } from "../../state/useRenderMesh";
 import { estimateComplexity, complexityMessage } from "../../customizer/estimateComplexity";
 import { useAccount } from "../../state/AccountContext";
+import {
+  clearStashedConfiguration,
+  readStashedConfiguration,
+  signInPath,
+  stashConfiguration,
+} from "../../account/signInReturn";
 import { Viewer } from "./Viewer";
 import { ParameterPanel } from "./ParameterPanel";
 import { ExportButton } from "./ExportButton";
@@ -32,35 +38,34 @@ interface CustomizeViewProps {
 }
 
 export function CustomizeView({ template, onBack, initialConfig }: CustomizeViewProps) {
+  const location = useLocation();
   const [config, setConfig] = useState<Configuration>(
-    () => initialConfig ?? defaultConfiguration(template),
+    () => readStashedConfiguration(template.id) ?? initialConfig ?? defaultConfiguration(template),
   );
+  useEffect(() => clearStashedConfiguration(template.id), [template.id]);
   const [color, setColor] = useState<string>(loadStoredColor);
 
   const complexity = useMemo(() => estimateComplexity(template.source), [template.source]);
   const complexityHint = useMemo(() => complexityMessage(complexity), [complexity]);
 
-  // Auto-renders once per Template (still benefiting from the
-  // default-preview cache race on that first paint — ADR-0010), but a
-  // Configuration change after that only marks the Mesh stale; the
-  // customer clicks Render to actually re-render (ADR-0013, following
-  // ADR-0012's removal of the old skip-then-click gate, ADR-0007, for a
-  // different reason — this isn't about protecting against a hang,
-  // useRenderMesh's 60s timeout still does that, it's about not firing a
-  // render on every slider tick at all). The Admin Panel's own preview
-  // does neither — see ADR-0009: an Admin always wants a current result.
+  // Auto-renders once on first paint (usually from the default-preview
+  // cache — ADR-0010); after that a Configuration change only marks the
+  // Mesh stale until the customer clicks Render (ADR-0013).
   const { geometry, loading, error, render, hasPendingChanges } = useRenderMesh(
     template,
     config,
     false,
     true,
-    true,
   );
-  // Render (the manual re-render click, not the automatic first paint —
-  // see ADR-0013) requires a signed-in Account, same gate as Export: an
-  // anonymous visitor still sees the Template's default Configuration
-  // instantly, just can't preview their own edits without signing in.
+  // Render and Export both require a signed-in Account. A signed-out
+  // visitor still sees the default Configuration instantly and can edit
+  // Parameters, but the only action offered is Sign in, which returns here
+  // with those edits intact.
   const { account } = useAccount();
+
+  function handleSignIn() {
+    stashConfiguration(template.id, config);
+  }
 
   function handleChange(name: string, value: Parameter["defaultValue"]) {
     setConfig((prev) => ({ ...prev, [name]: value }));
@@ -84,24 +89,30 @@ export function CustomizeView({ template, onBack, initialConfig }: CustomizeView
         <h1>{template.name}</h1>
         <div className="customize-header-actions">
           {account === null ? (
-            <Link className="admin-link" to="/login">
-              Sign in to render
+            <Link
+              className="export-button"
+              to={signInPath(location.pathname + location.search)}
+              onClick={handleSignIn}
+            >
+              Sign in
             </Link>
           ) : (
-            <button
-              className="render-button"
-              onClick={render}
-              disabled={!hasPendingChanges || loading || account === undefined}
-            >
-              Render
-            </button>
+            <>
+              <button
+                className="render-button"
+                onClick={render}
+                disabled={!hasPendingChanges || loading || account === undefined}
+              >
+                Render
+              </button>
+              <ExportButton
+                templateId={template.id}
+                parameters={template.parameters}
+                configuration={config}
+                fileName={template.name.replace(/\s+/g, "-").toLowerCase()}
+              />
+            </>
           )}
-          <ExportButton
-            templateId={template.id}
-            parameters={template.parameters}
-            configuration={config}
-            fileName={template.name.replace(/\s+/g, "-").toLowerCase()}
-          />
         </div>
       </header>
       <div className="customize-body">

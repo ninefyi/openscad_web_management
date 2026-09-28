@@ -8,6 +8,8 @@ export interface ServerPreviewState {
   working: boolean;
   message: string | null;
   error: string | null;
+  /** The `key` the displayed geometry was rendered from, if one was given. */
+  renderedKey: string | null;
 }
 
 /**
@@ -33,6 +35,7 @@ export function useServerPreview(): ServerPreviewState & {
     working: false,
     message: null,
     error: null,
+    renderedKey: null,
   });
 
   const geometryRef = useRef<BufferGeometry | null>(null);
@@ -60,7 +63,13 @@ export function useServerPreview(): ServerPreviewState & {
       if (key === doneKeyRef.current && geometryRef.current) {
         runIdRef.current++; // drop any other run still in flight — these inputs win
         inFlightKeyRef.current = null;
-        setState({ geometry: geometryRef.current, working: false, message: null, error: null });
+        setState({
+          geometry: geometryRef.current,
+          working: false,
+          message: null,
+          error: null,
+          renderedKey: key,
+        });
         return;
       }
     }
@@ -89,12 +98,12 @@ export function useServerPreview(): ServerPreviewState & {
 
       if (result.status !== "done" || !result.downloadUrl) {
         inFlightKeyRef.current = null;
-        setState({
-          geometry: geometryRef.current,
+        setState((prev) => ({
+          ...prev,
           working: false,
           message: null,
           error: result.error ?? "Server render failed.",
-        });
+        }));
         return;
       }
 
@@ -108,7 +117,7 @@ export function useServerPreview(): ServerPreviewState & {
       geometryRef.current = geometry;
       inFlightKeyRef.current = null;
       doneKeyRef.current = key ?? null;
-      setState({ geometry, working: false, message: null, error: null });
+      setState({ geometry, working: false, message: null, error: null, renderedKey: key ?? null });
     } catch (err) {
       if (runId !== runIdRef.current) return;
       inFlightKeyRef.current = null;
