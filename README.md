@@ -1,4 +1,4 @@
-# OpenSCAD Web Management
+# Sukjai Studio
 
 A web app that lets non-technical users customize parametric OpenSCAD designs through a generated UI, with a live 3D preview and one-click STL export. The Gallery and Customize view are served live by a Cloudflare Worker (Pages Functions) backed by D1, and an authenticated Admin manages the Built-in Template library through an Admin Panel. Rendering is hybrid — the customer-facing preview stays entirely client-side, but a customer's Export always Renders server-side, through native OpenSCAD in a Cloudflare Container (see [ADR-0004](./docs/adr/0004-hybrid-client-and-server-rendering.md)); the Admin Panel can trigger either engine on demand. The `v1` branch is the original fully static, backend-less version of the same app and is frozen — see its own README/CONTEXT.md.
 

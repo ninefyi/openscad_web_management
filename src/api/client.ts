@@ -28,7 +28,11 @@ export async function listTemplateImages(id: string): Promise<TemplateImage[]> {
   return res.json();
 }
 
-export async function listBuiltinTemplates(): Promise<TemplateSummary[]> {
+export interface GalleryTemplate extends TemplateSummary {
+  images: TemplateImage[];
+}
+
+export async function listBuiltinTemplates(): Promise<GalleryTemplate[]> {
   const res = await fetch("/api/templates");
   if (!res.ok) throw new Error("Couldn't load the template gallery.");
   return res.json();

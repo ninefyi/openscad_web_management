@@ -1,4 +1,4 @@
-# Deploying OpenSCAD Web Management to Cloudflare
+# Deploying Sukjai Studio to Cloudflare
 
 Everything in this repo is ready to go — the pieces below all need your Cloudflare account and can't be done from here. Run them from the `main` branch, in order.
 

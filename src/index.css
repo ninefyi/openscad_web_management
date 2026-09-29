@@ -100,20 +100,121 @@ button {
 }
 
 .template-card-thumb {
-  height: 140px;
+  position: relative;
+  height: 180px;
   background: #eef2ff;
+}
+
+.template-card-thumb-link {
   display: flex;
   align-items: center;
   justify-content: center;
+  width: 100%;
+  height: 100%;
+  text-decoration: none;
 }
 
 .template-card-thumb img {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  display: block;
+}
+
+.template-card-body {
+  display: block;
+  color: inherit;
+  text-decoration: none;
+}
+
+.card-carousel,
+.card-carousel-track {
+  width: 100%;
+  height: 100%;
+}
+
+.card-carousel-track {
+  display: flex;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+}
+
+.card-carousel-track::-webkit-scrollbar {
+  display: none;
+}
+
+.card-carousel-slide {
+  flex: 0 0 100%;
+  height: 100%;
+  scroll-snap-align: start;
+}
+
+.card-carousel-nav {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.9);
+  color: var(--text);
+  font-size: 1.25rem;
+  line-height: 1;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.card-carousel-prev {
+  left: 8px;
+}
+
+.card-carousel-next {
+  right: 8px;
+}
+
+.template-card:hover .card-carousel-nav,
+.card-carousel-nav:focus-visible {
+  opacity: 1;
+}
+
+@media (hover: none) {
+  .card-carousel-nav {
+    display: none;
+  }
+}
+
+.card-carousel-dots {
+  position: absolute;
+  bottom: 8px;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: center;
+  gap: 5px;
+  pointer-events: none;
+}
+
+.card-carousel-dots span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.6);
+  box-shadow: 0 0 2px rgba(0, 0, 0, 0.4);
+}
+
+.card-carousel-dots span.active {
+  background: #fff;
 }
 
 .template-card-thumb-placeholder {
+  display: block;
   font-size: 2.5rem;
   font-weight: 600;
   color: var(--accent);

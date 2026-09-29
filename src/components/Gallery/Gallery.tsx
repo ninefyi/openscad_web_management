@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { listBuiltinTemplates, type TemplateSummary } from "../../api/client";
+import { listBuiltinTemplates, type GalleryTemplate } from "../../api/client";
 import { useAccount } from "../../state/AccountContext";
 import { TemplateCard } from "./TemplateCard";
 
 export function Gallery() {
-  const [templates, setTemplates] = useState<TemplateSummary[] | null>(null);
+  const [templates, setTemplates] = useState<GalleryTemplate[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const { account, logout } = useAccount();
 
@@ -36,7 +36,7 @@ export function Gallery() {
       </nav>
       <header className="gallery-header">
         <img className="gallery-logo" src="/favicon.png" alt="Sukjai Lab" />
-        <h1>OpenSCAD Web Management</h1>
+        <h1>Sukjai Studio</h1>
         <p>Pick a design, adjust it to fit, export it ready to print.</p>
       </header>
       {error && <p className="gallery-error">{error}</p>}
