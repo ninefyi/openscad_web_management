@@ -1,6 +1,11 @@
 import { useState } from "react";
 import type { Configuration, Parameter } from "../../types/template";
-import { submitExport, pollUntilSettled, visibleConfiguration } from "../../api/exportClient";
+import {
+  submitExport,
+  pollUntilSettled,
+  visibleConfiguration,
+  type ExportFormat,
+} from "../../api/exportClient";
 import { useAccount } from "../../state/AccountContext";
 
 interface ExportButtonProps {
@@ -19,6 +24,7 @@ type ExportState =
 // signed-out Sign in button lives in CustomizeView.
 export function ExportButton({ templateId, parameters, configuration, fileName }: ExportButtonProps) {
   const [state, setState] = useState<ExportState>({ phase: "idle" });
+  const [format, setFormat] = useState<ExportFormat>("stl");
   const { account } = useAccount();
 
   async function handleExport() {
@@ -27,6 +33,7 @@ export function ExportButton({ templateId, parameters, configuration, fileName }
       const { jobId } = await submitExport(
         templateId,
         visibleConfiguration(parameters, configuration),
+        format,
       );
 
       const final = await pollUntilSettled(jobId, (status) => {
@@ -46,7 +53,7 @@ export function ExportButton({ templateId, parameters, configuration, fileName }
       if (final.status === "done" && final.downloadUrl) {
         const a = document.createElement("a");
         a.href = final.downloadUrl;
-        a.download = `${fileName}.stl`;
+        a.download = `${fileName}.${format}`;
         a.click();
         setState({ phase: "idle" });
       } else {
@@ -62,13 +69,25 @@ export function ExportButton({ templateId, parameters, configuration, fileName }
 
   return (
     <div className="export-control">
-      <button
-        className="export-button"
-        disabled={state.phase === "working" || account === undefined}
-        onClick={handleExport}
-      >
-        {state.phase === "working" ? state.message : "Export STL"}
-      </button>
+      <div className="export-row">
+        <select
+          className="admin-export-format"
+          value={format}
+          onChange={(e) => setFormat(e.target.value as ExportFormat)}
+          disabled={state.phase === "working"}
+          aria-label="Export format"
+        >
+          <option value="stl">.STL</option>
+          <option value="3mf">.3MF</option>
+        </select>
+        <button
+          className="export-button"
+          disabled={state.phase === "working" || account === undefined}
+          onClick={handleExport}
+        >
+          {state.phase === "working" ? state.message : "Export"}
+        </button>
+      </div>
       {state.phase === "error" && <p className="export-error">{state.message}</p>}
     </div>
   );

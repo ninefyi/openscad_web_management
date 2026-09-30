@@ -51,19 +51,20 @@ async function parseJsonOrThrow<T>(res: Response): Promise<T> {
   return body;
 }
 
+export type ExportFormat = "stl" | "3mf";
+
 export async function submitExport(
   templateId: string,
   configuration: Record<string, Configuration[string]>,
+  format: ExportFormat = "stl",
 ): Promise<{ jobId: string }> {
   const res = await fetch("/api/export", {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ templateId, configuration, sessionToken: getSessionToken() }),
+    body: JSON.stringify({ templateId, configuration, format, sessionToken: getSessionToken() }),
   });
   return parseJsonOrThrow<{ jobId: string }>(res);
 }
-
-export type ExportFormat = "stl" | "3mf";
 
 export async function submitAdminRender(
   source: string,

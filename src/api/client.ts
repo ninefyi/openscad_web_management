@@ -8,6 +8,7 @@ export interface TemplateSummary {
   description: string | null;
   hasThumbnail: boolean;
   isListed: boolean;
+  downloadCount: number;
   updatedAt: string;
 }
 

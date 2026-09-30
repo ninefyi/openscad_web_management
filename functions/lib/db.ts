@@ -8,6 +8,7 @@ export interface TemplateRow {
   manifest_hide: string;
   thumbnail_key: string | null;
   is_listed: number;
+  download_count: number;
   created_at: string;
   updated_at: string;
 }
@@ -18,6 +19,7 @@ export interface TemplateSummaryDTO {
   description: string | null;
   hasThumbnail: boolean;
   isListed: boolean;
+  downloadCount: number;
   updatedAt: string;
 }
 
@@ -37,6 +39,7 @@ export function toSummaryDTO(row: TemplateRow): TemplateSummaryDTO {
     description: row.description,
     hasThumbnail: row.thumbnail_key !== null,
     isListed: row.is_listed === 1,
+    downloadCount: row.download_count,
     updatedAt: row.updated_at,
   };
 }

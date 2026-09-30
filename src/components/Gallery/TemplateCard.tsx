@@ -31,6 +31,10 @@ export function TemplateCard({ template }: TemplateCardProps) {
       <Link className="template-card-body" to={href}>
         <h3>{template.name}</h3>
         {template.description && <p>{template.description}</p>}
+        <p className="template-card-downloads">
+          <span aria-hidden="true">↓</span> {template.downloadCount.toLocaleString()}{" "}
+          {template.downloadCount === 1 ? "download" : "downloads"}
+        </p>
       </Link>
     </div>
   );

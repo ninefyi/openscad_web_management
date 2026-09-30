@@ -96,8 +96,12 @@ The printer bed a Mesh is shown standing on in every Viewer (customer and Admin 
 _Avoid_: Tray, Bed (in UI copy, "plate" matches what printer owners call it)
 
 **Export**:
-The customer's action of downloading an STL file for the current Configuration — requires a signed-in Account, enforced both in the UI (a signed-out visitor sees only a single "Sign in" button in place of both Render and Export) and at `POST /api/export` itself, which 401s an anonymous request. Always goes through a fresh Export Job (a server-side Render via native OpenSCAD) — never a re-export of the Viewer's own client-side Mesh, even though the Viewer is usually already showing the identical result. Not instant: the customer sees the Export Job's progress (queued/rendering) until the file is ready to download. Always STL, always server-side — contrast with the Admin's own, differently-shaped Export.
-_Avoid_: Download (Save means something else now — the Admin's action, not this one — see Save; don't use it for this either)
+The customer's action of downloading a file, STL or 3MF (chosen from a dropdown beside the button), for the current Configuration — requires a signed-in Account, enforced both in the UI (a signed-out visitor sees only a single "Sign in" button in place of both Render and Export) and at `POST /api/export` itself, which 401s an anonymous request. Always goes through a fresh Export Job (a server-side Render via native OpenSCAD) — never a re-export of the Viewer's own client-side Mesh, even though the Viewer is usually already showing the identical result. Not instant: the customer sees the Export Job's progress (queued/rendering) until the file is ready to download. Always server-side, in either format — contrast with the Admin's own, differently-shaped Export. Each accepted Export request adds one to the Template's Download Count.
+_Avoid_: Download as the name of the action (Save means something else now — the Admin's action, not this one — see Save; don't use it for this either). Download appears only in the user-facing "N downloads" label, which is the Download Count.
+
+**Download Count**:
+How many times customers have Exported a Template, in either format, shown on its Gallery card as "N downloads". Bumped once per accepted Export request, including one answered from an earlier finished Export Job instead of a new Render, so it counts what customers asked for rather than Export Jobs created; a Render that later fails still counted. Admin Exports and Render on server don't count. Templates that existed before the count was introduced started from their number of finished Export Jobs, a lower bound.
+_Avoid_: Views, Popularity
 
 ### Administration (v2 only)
 
